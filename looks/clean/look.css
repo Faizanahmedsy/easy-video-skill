@@ -1,0 +1,527 @@
+/*
+ * Clean: a light look for product videos.
+ * Ground #F2F3F5 under a fine grid, white flat cards with a 1 px border,
+ * ink #0A0A0C, muted #5B606B and ONE cobalt accent #0A5CFF.
+ * Outfit for headlines and figures, DM Sans for interface text.
+ */
+#stage[data-look="clean"] {
+  --ground: #f2f3f5;
+  --card: #fff;
+  --line: #e1e3e8;
+  --ink: #0a0a0c;
+  --muted: #5b606b;
+  --accent: #0a5cff;
+  --on-accent: #fff;
+  --gain: #139e4b;
+  --loss: #e5342b;
+  --soft: rgba(10, 92, 255, 0.08);
+  --r: 14px;
+  font-family: "DM Sans", system-ui, sans-serif;
+  color: var(--ink);
+}
+
+/* ── type ── */
+#stage[data-look="clean"] .title,
+#stage[data-look="clean"] .c-title {
+  font-family: "Outfit", sans-serif;
+  font-weight: 640;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+  color: var(--ink);
+}
+#stage[data-look="clean"] .title .em {
+  color: var(--accent);
+}
+
+#stage[data-look="clean"] .mark-bar {
+  border-radius: 3px;
+}
+#stage[data-look="clean"] .mark-bar {
+  height: 0.09em;
+  bottom: 0.02em;
+}
+#stage[data-look="clean"] .c-label {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+#stage[data-look="clean"] .c-label::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--accent);
+  flex: none;
+}
+#stage[data-look="clean"] .c-body {
+  position: absolute;
+  font-size: 30px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* ── cards ── */
+#stage[data-look="clean"] .card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+#stage[data-look="clean"] .c-float {
+  box-shadow: 0 1px 0 rgba(10, 10, 12, 0.03), 0 30px 60px -34px rgba(10, 10, 12, 0.22);
+}
+
+/* sticky to-do chips */
+#stage[data-look="clean"] .c-note {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 24px;
+  font-size: 25px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+#stage[data-look="clean"] .c-note b {
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--muted);
+  background: var(--ground);
+  border-radius: 6px;
+  padding: 5px 9px;
+}
+
+/* ── app window ── */
+#stage[data-look="clean"] .c-app {
+  overflow: hidden;
+}
+#stage[data-look="clean"] .c-app-top {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+  font-size: 22px;
+}
+#stage[data-look="clean"] .c-app-name {
+  font-family: "Outfit", sans-serif;
+  font-weight: 650;
+  font-size: 25px;
+  letter-spacing: -0.02em;
+}
+#stage[data-look="clean"] .c-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 40px;
+  width: 340px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 9px;
+  background: var(--ground);
+  color: var(--muted);
+  font-size: 18px;
+}
+#stage[data-look="clean"] .c-top-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--muted);
+}
+#stage[data-look="clean"] .c-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+}
+#stage[data-look="clean"] .c-app-nav {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  padding: 20px 14px;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+#stage[data-look="clean"] .c-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+#stage[data-look="clean"] .c-nav-item.on {
+  background: var(--soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+#stage[data-look="clean"] .c-app-body {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+}
+#stage[data-look="clean"] .c-h {
+  position: absolute;
+  font-family: "Outfit", sans-serif;
+  font-weight: 620;
+  font-size: 32px;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+/* ── buttons and chips ── */
+#stage[data-look="clean"] .c-btn {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-size: 19px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+}
+#stage[data-look="clean"] .c-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+#stage[data-look="clean"] .c-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  background: var(--ground);
+  color: var(--muted);
+}
+#stage[data-look="clean"] .c-chip::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: currentColor;
+}
+#stage[data-look="clean"] .c-chip.accent {
+  background: var(--soft);
+  color: var(--accent);
+}
+#stage[data-look="clean"] .c-chip.gain {
+  background: rgba(19, 158, 75, 0.1);
+  color: var(--gain);
+}
+#stage[data-look="clean"] .c-chip.loss {
+  background: rgba(229, 52, 43, 0.1);
+  color: var(--loss);
+}
+
+/* ── table ── */
+#stage[data-look="clean"] .c-table .tr {
+  border-bottom: 1px solid var(--line);
+  font-size: 21px;
+  background: var(--card);
+}
+#stage[data-look="clean"] .c-table .th {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+}
+#stage[data-look="clean"] .c-table .td {
+  padding: 0 14px;
+}
+#stage[data-look="clean"] .c-table .td:first-child {
+  font-weight: 550;
+}
+
+/* ── KPI tiles ── */
+#stage[data-look="clean"] .c-kpis .kpi {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 24px 28px;
+}
+#stage[data-look="clean"] .kpi-label {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--muted);
+  padding-right: 120px;
+}
+#stage[data-look="clean"] .kpi-value {
+  font-family: "Outfit", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  margin: 18px 0 10px;
+  color: var(--ink);
+}
+#stage[data-look="clean"] .kpi-sub {
+  font-size: 18px;
+  color: var(--muted);
+}
+#stage[data-look="clean"] .c-delta {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 10px 0 6px;
+  border-radius: 8px;
+  font-size: 17px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  background: rgba(19, 158, 75, 0.1);
+  color: var(--gain);
+}
+#stage[data-look="clean"] .c-delta.down {
+  background: rgba(229, 52, 43, 0.1);
+  color: var(--loss);
+}
+
+/* ── chart ── */
+#stage[data-look="clean"] .c-chart svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+#stage[data-look="clean"] .c-chart-head {
+  position: absolute;
+  left: 28px;
+  top: 22px;
+  right: 28px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 21px;
+  font-weight: 600;
+}
+#stage[data-look="clean"] .c-chart-head span {
+  margin-left: auto;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--muted);
+}
+#stage[data-look="clean"] .c-axis {
+  position: absolute;
+  font-size: 15px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+#stage[data-look="clean"] .chart-line {
+  stroke: var(--accent);
+  stroke-width: 4;
+}
+#stage[data-look="clean"] .chart-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+#stage[data-look="clean"] .chart-dot {
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 4;
+}
+#stage[data-look="clean"] .c-tag {
+  position: absolute;
+  padding: 8px 14px;
+  border-radius: 9px;
+  background: var(--ink);
+  color: #fff;
+  font-family: "Outfit", sans-serif;
+  font-weight: 600;
+  font-size: 22px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transform-origin: 50% 100%;
+}
+
+/* ── assistant panel ── */
+#stage[data-look="clean"] .c-assist {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--card);
+  border-left: 1px solid var(--line);
+}
+#stage[data-look="clean"] .c-assist-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 72px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--line);
+  font-size: 21px;
+  font-weight: 600;
+}
+#stage[data-look="clean"] .c-spark {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+#stage[data-look="clean"] .c-msgs {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  top: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+#stage[data-look="clean"] .c-msg {
+  position: relative;
+  max-width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-size: 19px;
+  line-height: 1.42;
+}
+#stage[data-look="clean"] .c-msg.user {
+  align-self: flex-end;
+  background: var(--ground);
+}
+#stage[data-look="clean"] .c-msg.bot {
+  align-self: stretch;
+  border: 1px solid var(--line);
+  padding-left: 56px;
+}
+#stage[data-look="clean"] .c-msg.bot .c-spark {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+#stage[data-look="clean"] .c-msg .ghost {
+  visibility: hidden;
+}
+#stage[data-look="clean"] .c-msg .typed {
+  position: absolute;
+  left: inherit;
+  top: 14px;
+  right: 18px;
+}
+#stage[data-look="clean"] .c-msg.user .typed {
+  left: 18px;
+}
+#stage[data-look="clean"] .c-msg.bot .typed {
+  left: 56px;
+}
+#stage[data-look="clean"] .c-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--ground);
+  white-space: nowrap;
+}
+#stage[data-look="clean"] .c-step i {
+  font-style: normal;
+  font-weight: 650;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── toast ── */
+#stage[data-look="clean"] .c-toast {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 22px 16px 16px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 21px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 24px 50px -24px rgba(10, 10, 12, 0.5);
+}
+#stage[data-look="clean"] .c-toast .c-spark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+/* ── logo + end card ── */
+#stage[data-look="clean"] .c-logo {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+#stage[data-look="clean"] .c-logo-mark {
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #fff;
+  flex: none;
+}
+#stage[data-look="clean"] .c-logo-name {
+  font-family: "Outfit", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+#stage[data-look="clean"] .c-tagline {
+  position: absolute;
+  font-size: 40px;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+}
+#stage[data-look="clean"] .c-cta {
+  height: 76px;
+  padding: 0 34px;
+  border-radius: 12px;
+  font-size: 30px;
+  gap: 14px;
+}
+#stage[data-look="clean"] .c-url {
+  position: absolute;
+  font-size: 22px;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ── transitions ── */
+#stage[data-look="clean"] .panel-text {
+  font-family: "Outfit", sans-serif;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}

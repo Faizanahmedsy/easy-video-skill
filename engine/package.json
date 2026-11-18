@@ -1,0 +1,15 @@
+{
+  "name": "easy-video-engine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Renders a video project (config.js + scenes.js) to an MP4 with headless Chromium and ffmpeg.",
+  "type": "module",
+  "license": "MIT-0",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "gsap": "3.15.0",
+    "playwright": "1.65.1"
+  }
+}

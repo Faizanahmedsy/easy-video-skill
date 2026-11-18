@@ -1,0 +1,127 @@
+/*
+ * Bold: a loud duotone look for reels (9:16 first, works in 16:9).
+ * Near-black #0F0F12, acid lime #D6FF3D, off-white #F7F7F2.
+ * Anton uppercase, huge and fitted to the safe width; Archivo for labels and captions.
+ */
+#stage[data-look="bold"] {
+  --black: #0f0f12;
+  --lime: #d6ff3d;
+  --white: #f7f7f2;
+  --ground: #0f0f12;
+  --ink: #f7f7f2;
+  --muted: rgba(247, 247, 242, 0.6);
+  --accent: #d6ff3d;
+  --on-accent: #0f0f12;
+  --line: rgba(247, 247, 242, 0.16);
+  --card: #0f0f12;
+  font-family: "Archivo", sans-serif;
+  color: var(--ink);
+}
+
+/* one solid ground per shot (in its own plane, so pushes carry it) */
+#stage[data-look="bold"] .b-ground {
+  position: absolute;
+  inset: -14%;
+}
+
+#stage[data-look="bold"] .title,
+#stage[data-look="bold"] .b-big {
+  font-family: "Anton", sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 0.94;
+  letter-spacing: 0.004em;
+}
+#stage[data-look="bold"] .title .em {
+  color: var(--accent);
+}
+
+/* text on a solid block */
+#stage[data-look="bold"] .b-block {
+  position: absolute;
+  overflow: hidden;
+  white-space: nowrap;
+}
+#stage[data-look="bold"] .b-block-t {
+  display: block;
+  font-family: "Anton", sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 1.08;
+  letter-spacing: 0.004em;
+  padding: 0 0.12em;
+  white-space: nowrap;
+}
+
+/* small label on a block */
+#stage[data-look="bold"] .b-label {
+  position: absolute;
+  font-family: "Archivo", sans-serif;
+  font-weight: 800;
+  font-stretch: 112%;
+  font-size: 34px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 14px 20px 13px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* the big count-up */
+#stage[data-look="bold"] .b-count {
+  position: absolute;
+  font-family: "Anton", sans-serif;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* drifting geometric blocks in the back plane */
+#stage[data-look="bold"] .b-shape {
+  position: absolute;
+  transform-origin: 50% 50%;
+}
+
+/* captions: a black block, the spoken word in lime */
+#stage[data-look="bold"] .b-caps .cap-row {
+  background: var(--black);
+  padding: 0.2em 0.42em 0.22em;
+  font-family: "Archivo", sans-serif;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-size: 54px;
+  line-height: 1.1;
+  color: var(--white);
+  max-width: 90%;
+}
+#stage[data-look="bold"] .b-caps .cap-w {
+  margin: 0 0.12em;
+}
+#stage[data-look="bold"] .b-caps .cap-w.on:not(:has(+ .cap-w.on)) {
+  color: var(--lime);
+}
+
+#stage[data-look="bold"] .panel-text {
+  font-family: "Anton", sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+#stage[data-look="bold"] .cursor-arrow {
+  fill: var(--white);
+  stroke: var(--black);
+}
+#stage[data-look="bold"] .cursor-ripple {
+  stroke: var(--lime);
+}
+#stage[data-look="bold"] .chart-line {
+  stroke: var(--lime);
+  stroke-width: 6;
+}
+#stage[data-look="bold"] .chart-grid {
+  stroke: rgba(247, 247, 242, 0.14);
+}
+#stage[data-look="bold"] .chart-dot {
+  fill: var(--lime);
+}

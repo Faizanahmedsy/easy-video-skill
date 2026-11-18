@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Video</title>
+    <!-- everything below is served by engine/render.mjs: the project's own files first, then the skill's -->
+    <link rel="stylesheet" href="fonts/fonts.css" />
+    <link rel="stylesheet" href="kit.css" />
+    <link rel="stylesheet" href="looks/clean/look.css" />
+    <link rel="stylesheet" href="looks/bold/look.css" />
+  </head>
+  <body>
+    <div id="stage">
+      <div class="backdrop"></div>
+      <div id="cam">
+        <div id="scenes"></div>
+        <svg id="fx" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div id="over"></div>
+      <div id="flash"></div>
+      <div id="vignette"></div>
+    </div>
+    <script src="node_modules/gsap/dist/gsap.min.js"></script>
+    <script src="node_modules/gsap/dist/CustomEase.min.js"></script>
+    <script src="node_modules/gsap/dist/SplitText.min.js"></script>
+    <script src="node_modules/gsap/dist/DrawSVGPlugin.min.js"></script>
+    <script src="node_modules/gsap/dist/MotionPathPlugin.min.js"></script>
+    <script src="kit.js"></script>
+    <script src="looks/clean/look.js"></script>
+    <script src="looks/bold/look.js"></script>
+    <script src="config.js"></script>
+    <script src="vo/words.js"></script>
+    <script src="scenes.js"></script>
+  </body>
+</html>

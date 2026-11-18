@@ -1,0 +1,303 @@
+/*
+ * kit.css: the stage and the base classes kit.js builds with.
+ * Colours and fonts come from the look (looks/<name>/look.css), through
+ * these custom properties: --ground --ink --muted --accent --on-accent
+ * --line --card. A project can override any of them with config `palette`.
+ *
+ * Layers, back to front:
+ *   .backdrop (ground, grid, spotlight)  →  #cam (#scenes, #fx)  →
+ *   #over (.panel, captions, .grain)     →  #flash  →  #vignette
+ */
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  overflow: hidden;
+}
+
+#stage {
+  --ground: #f2f3f5;
+  --ink: #0a0a0c;
+  --muted: #5b606b;
+  --accent: #0a5cff;
+  --on-accent: #fff;
+  --line: #e1e3e8;
+  --card: #fff;
+  position: relative;
+  overflow: hidden;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  font-kerning: normal;
+}
+
+/* ── layers ── */
+#stage .backdrop,
+#cam,
+#scenes,
+#over,
+#flash,
+#vignette {
+  position: absolute;
+  inset: 0;
+}
+#stage .backdrop {
+  z-index: 0;
+  overflow: hidden;
+  background: var(--ground);
+}
+#cam {
+  z-index: 1;
+}
+#scenes {
+  z-index: 0;
+}
+#fx {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+#over {
+  z-index: 5;
+  pointer-events: none;
+}
+#flash {
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+}
+#vignette {
+  z-index: 7;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.scene,
+.plane {
+  position: absolute;
+  inset: 0;
+}
+.plane {
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.stage-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ── backdrop pieces ── */
+.grid-minor,
+.grid-major {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1;
+}
+.grid-minor {
+  stroke: rgba(10, 10, 12, 0.05);
+}
+.grid-major {
+  stroke: rgba(10, 10, 12, 0.09);
+}
+.spot {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.spot-grid {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0) 62%);
+}
+.spot-spot {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0) 60%);
+}
+
+/* ── transitions and finish (inside #over) ── */
+.panel {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.panel-text {
+  font-size: calc(110px * var(--k, 1));
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  padding: 0 8%;
+}
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+.grain-tile {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+  background-size: 192px 192px;
+}
+
+/* ── text ── */
+.title {
+  position: absolute;
+  line-height: 1.04;
+  white-space: normal;
+}
+/* the line masks get room above and below, so marks and descenders are not cut */
+.title .ln-mask {
+  padding: 0.06em 0.14em 0.16em;
+  margin: -0.06em -0.14em -0.16em;
+}
+.title .wd {
+  white-space: nowrap;
+}
+.title .em {
+  position: relative;
+  z-index: 0;
+}
+.mark {
+  position: absolute;
+  z-index: -1;
+  left: -0.04em;
+  right: -0.04em;
+  transform-origin: 0% 50%;
+  pointer-events: none;
+  background: var(--accent);
+}
+.mark-bar {
+  bottom: -0.02em;
+  height: 0.12em;
+  border-radius: 0.02em;
+}
+.mark-box {
+  top: 0.02em;
+  bottom: -0.04em;
+  left: -0.1em;
+  right: -0.1em;
+}
+
+/* ── cards and data ── */
+.card {
+  position: absolute;
+}
+.kpis {
+  position: absolute;
+  display: grid;
+  align-items: stretch;
+}
+.kpi {
+  position: relative;
+  min-width: 0;
+}
+.kpi-label,
+.kpi-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kpi-value {
+  white-space: nowrap;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.table {
+  position: absolute;
+}
+.tr {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+}
+.td {
+  display: block;
+  flex: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chart-grid {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.chart-dot {
+  fill: var(--accent);
+}
+.chart-area-top {
+  stop-color: var(--accent);
+  stop-opacity: 0.16;
+}
+.chart-area-bottom {
+  stop-color: var(--accent);
+  stop-opacity: 0;
+}
+.bar {
+  fill: var(--line);
+}
+.bar-hi {
+  fill: var(--accent);
+}
+
+/* ── captions ── */
+.captions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
+}
+.cap-row {
+  display: inline-block;
+}
+.cap-w {
+  display: inline-block;
+  margin: 0 0.14em;
+}
+
+/* ── cursor ── */
+.cursor-arrow {
+  fill: var(--ink);
+  stroke: #fff;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.cursor-ripple {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.ico {
+  display: inline-block;
+  vertical-align: middle;
+  flex: none;
+}
