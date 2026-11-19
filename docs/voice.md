@@ -38,7 +38,7 @@ bash scripts/voice.sh <project> <audio-file>
 
 This converts the file, finds when each word is spoken (so words on screen
 appear in time with the voice) and suggests the video's length. If the
-optional speech tool is installed (`pip install faster-whisper`), the
+optional speech tool is installed (the free faster-whisper Python package), the
 word times are exact; without it they are close enough for most videos.
 
 ### A good style note

@@ -1,37 +1,39 @@
 # Bold
 
-A loud duotone look for reels. 9:16 first; works in 16:9.
+A dark night look for reels. 9:16 first; works in 16:9.
 
-- Near-black `#0F0F12`, acid lime `#D6FF3D`, off-white `#F7F7F2`
-- Anton, uppercase, huge, fitted to the safe width; Archivo for labels and captions
-- Text on solid blocks that slide in and stack from alternating sides
-- A solid full-frame ground per shot, with geometric blocks drifting in the back plane
-- Captions on a black block, the spoken word in lime
+- A near-black ground `#0A0B10` lit by slow pools of deep colour (`backdrop: "glow dots"`)
+- ONE volt accent `#C8FF2E` and off-white `#F4F5F0`
+- Anton for huge words, each line fitted to the same width so a headline reads as one poster;
+  Archivo light and wide for the quiet second voice, labels and captions
+- Dark glass cards, a phone with a real-looking screen, light beams or a star field behind (`scenery`)
+- Every shot has depth: three planes, faint discs of light, a slow camera drift
 
-![Bold](../../docs/images/bold-habit.webp)
+![Bold](../../docs/images/bold-opening.webp)
 
 ## Helpers
 
-`const L = Kit.use(v, "bold")`, then (colours by name: `"black"`, `"lime"`, `"white"`):
+`const L = Kit.use(v, "bold")`, then:
 
 | Call | What it makes |
 | --- | --- |
-| `L.shot(name, ground)` | a scene with a solid ground in its own plane (pushes carry it) |
-| `L.shapes(A, { at, dur, seed, land })` | drifting squares, discs, half-discs and bars; `land: true` drifts them into place |
-| `L.stack(parent, [{ text, bg }], { x, y, w, at, max })` | lines on blocks, each fitted to the width, from alternating sides |
-| `L.unstack(S, at)` | the blocks leave the way they came |
-| `L.block(parent, text, { x, y, w, bg, from, at })` | one block of text |
-| `L.label(parent, text, { x, y, bg, at })` | a small Archivo label on a block |
-| `L.count(parent, { y, from, to, at, fmt, color })` | a big count-up fitted to the width |
-| `L.words(text, at, each)` | word times for captions when there is no voice |
-| `L.captions(parent, { words, y, from, to })` | captions on a black block (voice words by default) |
+| `L.shot(name, { scenery })` | a scene with three depth planes and discs of light; scenery `"rays"`, `"stars"` or `"studio"` |
+| `L.kicker(parent, text, { x, y, at })` | a small uppercase label with an accent bar |
+| `L.big(parent, lines, { x, y, w, at })` | huge stacked lines; a line is a string or `{ text, kind: "accent" \| "lite", max }`; `.out(at)` takes them away |
+| `L.count(parent, { y, value, suffix, at })` | a big number that rolls into place, digit by digit |
+| `L.notif(parent, { x, y, icon, color, title, sub, time })` | a notification in dark glass |
+| `L.phone(parent, { x, y, w, at })` | a phone that rises and untilts; build the app in `.screen` |
+| `L.screenText(screen, text, { x, y, size, cls, align })` | text on the phone screen |
+| `L.button(parent, text, { x, y, w, h })`, `L.tap(el, at, x, y, g)` | an accent button, and a tap with a ring of light |
+| `L.logo(parent, { size, name })`, `L.logoIn(logo, at)` | the mark (a ring holding a dot) and name |
+| `L.endCard(A, { name, tagline, cta, at, tap })` | logo, line and button, with a sheen and a tap |
+| `L.words(text, at, each)`, `L.captions(parent, { words, y })` | captions on a dark pill, the spoken word in the accent |
 
 ## Transitions
 
-- `L.panels(at, { colors })`: lime, black and white panels stack upward; swap shots at `.mid`
-- `L.push(A, B, at)`: push up (or `dir: "left"`)
-- `L.zoomThrough(A, B, at, x, y)`: dive into a block
-- `L.cut(A, B, at)`: a hard cut with a 2-frame lime flash
+- `L.zoomThrough(A, B, at, x, y)`: dive into a word or a card
+- `L.wipe(at)`: an accent edge and the dark ground sweep up on a slant; swap shots at `.mid`
+- `L.whip(A, B, at)`: a fast pan up, streaked by motion blur
+- `L.push(A, B, at)`, `L.cut(A, B, at)` (with a 2-frame accent flash), `L.panels(at)`
 
-To loop, build the opening shot again at the end so the last frame matches the first
-(see `examples/reel`).
+See `examples/reel` for all of these in one video.

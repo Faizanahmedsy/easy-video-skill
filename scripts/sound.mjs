@@ -209,8 +209,36 @@ const SFX = {
     }
     return b
   },
+  // a soft key press: a short filtered tap
+  key(o) {
+    const b = new Float32Array(Math.round(0.07 * SR))
+    const f = bp(1.4)
+    for (let i = 0; i < b.length; i++) b[i] = f(noise(), 3200 * (o.pitch ?? 1)) * Math.exp(-i / SR / 0.012) * 1.4
+    return b
+  },
+  // a bright two-note bell for a confirmation
+  chime(o) {
+    const p = o.pitch ?? 1
+    const a = tone(1318.5 * p, 0.9, { harm: 2, decay: 0.32, release: 0.1 })
+    const c = tone(1975.5 * p, 0.8, { harm: 2, decay: 0.28, release: 0.1 })
+    const b = new Float32Array(a.length + Math.round(0.08 * SR))
+    for (let i = 0; i < a.length; i++) b[i] += a[i] * 0.6
+    for (let i = 0; i < c.length; i++) b[i + Math.round(0.08 * SR)] += c[i] * 0.5
+    return b
+  },
+  // filtered noise that swells up into a cut
+  riser(o) {
+    const len = o.dur ?? 0.8
+    const b = new Float32Array(Math.round(len * SR))
+    const f = bp(0.8)
+    for (let i = 0; i < b.length; i++) {
+      const x = i / b.length
+      b[i] = f(noise(), (400 + 5200 * x * x) * (o.pitch ?? 1)) * x ** 2.2 * 1.3
+    }
+    return b
+  },
 }
-const LEVEL = { whoosh: 0.32, swish: 0.22, tick: 0.16, click: 0.3, pop: 0.3, hit: 0.45 }
+const LEVEL = { whoosh: 0.32, swish: 0.22, tick: 0.16, click: 0.3, pop: 0.3, hit: 0.45, key: 0.12, chime: 0.18, riser: 0.22 }
 const skipped = new Set()
 let used = 0
 for (const c of info.cues) {

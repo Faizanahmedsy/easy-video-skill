@@ -122,6 +122,14 @@ Before writing scenes, read `looks/clean/LOOK.md` (product video) or
   gave one.
 - `scenes.js`: the scenes, made from the look's helpers and `Kit.*` calls.
   One scene per script line or two. Time words to the voice with `Kit.vo`.
+  Start from the example's `scenes.js` and change the words, data and
+  screens; keep its craft:
+  - frame 0 is a finished picture (the first shot already composed);
+  - every shot has depth (the look's `L.shot` gives three planes) and a
+    slow camera drift (`A.P.drift`);
+  - move between shots with a motivated transition (whip, zoom through, a
+    match cut with `L.flyTo`, a wipe), not a plain fade;
+  - one main movement at a time, on the kit's eases.
 - **Render rules:** a frame must depend only on time. Put every motion on
   `v.tl`, use `v.rand()` and `v.onFrame()`. Never use `Math.random`,
   `setTimeout`, `Date.now` or CSS animations in scenes.
@@ -144,7 +152,15 @@ Look for:
 - empty or black frames, spelling, a squashed logo.
 
 Fix, render again, look again. Do at least 3 rounds, and keep going until a
-round finds nothing.
+round finds nothing. Then run the layout check, which finds overlaps,
+cut-off text, text under a platform's buttons and empty frames over the
+whole video:
+
+```bash
+node engine/render.mjs ~/easy-videos/<name> --check
+```
+
+The draft runs this check too and stops if it finds a problem.
 
 ## Step 6 · The draft
 
@@ -189,6 +205,10 @@ Say it in one plain sentence, fix it, and carry on. Common cases:
 - A still looks wrong: fix the scene, render that moment again with `--at`.
 - The final refuses to start: something changed since the approved draft.
   Make a new draft and get a "looks good".
+- The draft stops at the layout check: fix what it lists (it names the text
+  and the time). Use `--force` only for an overlap you mean to have.
+- The computer struggles during a render: add `--workers 1` (fewer pages
+  render side by side; slower but lighter).
 
 Script advice stays general: short, clear, one idea per line. Don't add
 formulas or tricks for getting views.

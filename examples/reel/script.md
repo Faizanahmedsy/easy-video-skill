@@ -1,13 +1,12 @@
-# 3 habits that save an hour a day: reel script (no voice)
+# Hush: reel script (no voice)
 
-Length: 13 s, 9:16. Music and on-screen text only; captions are timed by hand.
-The last frame matches the first, so the reel loops.
+A made-up focus app. Length: 14 s, 9:16. Music and on-screen text only;
+every number is sample data.
 
-| Time | Shot | Big type | Caption |
+| Time | Shot | Big type | Move |
 | --- | --- | --- | --- |
-| 0.0 – 2.8 | Opening | SAVE / AN HOUR / EVERY DAY | |
-| 2.8 – 5.0 | Habit 01 | BATCH / YOUR / EMAIL | Check mail twice a day, not all day. |
-| 5.0 – 7.5 | Habit 02 | SAY NO / TO EXTRA / MEETINGS | Keep the hour for real work. |
-| 7.5 – 9.9 | Habit 03 | PLAN / TOMORROW / TONIGHT | Five minutes tonight saves an hour tomorrow. |
-| 9.9 – 12.1 | The number | 300 / MINUTES BACK / EVERY WEEK | |
-| 12.1 – 13.0 | Opening again | SAVE / AN HOUR / EVERY DAY | |
+| 0.0 – 2.6 | Every ping | EVERY / PING / BREAKS YOUR / FOCUS. Notifications pile up below. | The word PING jumps with each one. Dive into FOCUS. |
+| 2.6 – 5.5 | Meet Hush | MEET · HUSH. / one tap to deep focus | The phone rises; Start is tapped and the timer runs. |
+| 5.5 – 8.4 | Pings wait | PINGS WAIT. / nothing buzzes until you are done | Notifications fly into the phone: "5 held for later". Slanted wipe. |
+| 8.4 – 11.2 | The number | +4.5 H / more deep work every week, and a week of bars | Whip pan up. |
+| 11.2 – 14.0 | End card | Hush. "Quiet phone. Loud work." TRY IT FREE · hush.example | The button is tapped. |

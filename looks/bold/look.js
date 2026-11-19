@@ -1,156 +1,181 @@
 /*
- * Bold: a loud duotone look for reels (9:16 first, works in 16:9).
+ * Bold: a dark night look for reels (9:16 first, works in 16:9).
  *
  *   const L = Kit.use(v, "bold")
- *   const A = L.shot("intro", "black")              // solid ground per shot
- *   L.shapes(A, { at: 0, dur: 3 })                   // geometric blocks drifting in the back
- *   L.stack(A.P.mid.el, [{ text: "Save", bg: "lime" }, { text: "an hour", bg: "white" }], { y: 420, at: 0.2 })
+ *   const A = L.shot("intro", { scenery: "stars" })     // depth planes, bokeh, an optional scenery preset
+ *   L.kicker(A.P.mid.el, "New", { y: 300, at: 0.1 })
+ *   const T = L.big(A.P.mid.el, ["Quiet", { text: "phone.", kind: "accent" }], { y: 360, at: 0.2 })
+ *   A.P.drift(0, 3)
  *
- * Colour names: "black", "lime", "white" (or any CSS colour).
  * Every helper is listed in looks/bold/LOOK.md.
  */
 ;(function () {
-  const { h } = window.Kit
-  const C = { black: "#0F0F12", lime: "#D6FF3D", white: "#F7F7F2" }
-  const col = (c) => C[c] || c
-  // the text colour that reads on each ground
-  const onCol = (bg) => (col(bg) === C.black ? C.white : C.black)
+  const { h, icon } = window.Kit
+  const G = window.gsap
+  const hash = (s) => [...String(s)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 3)
 
   Kit.look("bold", {
     init(v) {
-      const L = { colors: C }
+      const L = {}
       const tl = v.tl
       const k = v.k
+      L.colors = { ground: "#0A0B10", ink: "#F4F5F0", accent: "#C8FF2E" }
 
-      /** A shot with a solid full-frame ground (its own plane, depth 1, so pushes carry it). */
-      L.shot = (name, ground = "black") => {
-        const A = Kit.shot(v, name, { ground: 1, bg: 0.35, mid: 0.75, fg: 1.3 })
-        A.ground = h("div", { class: "b-ground", style: { background: col(ground) } }, A.P.ground.el)
-        A.color = col(ground)
+      /**
+       * A shot: three depth planes, faint discs of light behind and a few big soft
+       * ones in front. o: { scenery: "stars" | "rays" | "studio", bokeh: false, from, to }
+       */
+      L.shot = (name, o = {}) => {
+        const A = Kit.shot(v, name, o.depths)
+        const seed = hash(name)
+        if (o.scenery) Kit.scenery(v, A.P.bg, o.scenery, { seed, from: o.from, to: o.to })
+        if (o.bokeh !== false) {
+          Kit.bokeh(v, A.P.bg.el, { count: 10, size: [16, 70], opacity: [0.18, 0.5], soft: 0.35, colors: ["#fff", "var(--glow-1)", "rgba(200,255,46,0.6)"], seed })
+          Kit.bokeh(v, A.P.fg.el, { count: 3, size: [160, 300], opacity: [0.1, 0.2], soft: 0.85, colors: ["var(--glow-1)", "var(--glow-2)"], seed: seed + 5, area: { x: -v.W * 0.1, y: 0, w: v.W * 1.2, h: v.H } })
+        }
         return A
       }
 
-      /**
-       * Geometric blocks (squares, circles, half-discs, bars) drifting in the back plane.
-       * o: { at, dur, seed, count, color, opacity, land } (land: true = they drift INTO
-       * their resting places by at + dur, so a closing shot matches the opening frame)
-       */
-      L.shapes = (A, o = {}) => {
-        const rnd = Kit.seeded(o.seed ?? 7)
-        const n = o.count ?? 6
-        const dark = A.color === C.black
-        const fill = o.color || (dark ? "rgba(247,247,242,0.06)" : "rgba(15,15,18,0.08)")
-        const hi = dark ? "rgba(214,255,61,0.16)" : "rgba(15,15,18,0.14)"
-        const kinds = ["square", "disc", "half", "bar"]
-        const at = o.at ?? 0
-        const dur = o.dur ?? v.cfg.duration
-        const els = []
-        for (let i = 0; i < n; i++) {
-          const kind = kinds[i % kinds.length]
-          const s = (220 + rnd() * 340) * k
-          const w = kind === "bar" ? s * 1.9 : s
-          const hh = kind === "bar" ? s * 0.34 : kind === "half" ? s / 2 : s
-          // spread them around the frame edges, away from the middle of the text
-          const side = i % 2 ? 1 : -1
-          const x = v.W / 2 + side * (v.W * (0.22 + rnd() * 0.32)) - w / 2
-          const y = (i / n) * v.H + rnd() * v.H * 0.12 - hh / 2
-          const r = kind === "disc" ? "50%" : kind === "half" ? `${s}px ${s}px 0 0` : "0"
-          const el = h("div", { class: "b-shape", style: { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${hh}px`, borderRadius: r, background: i === 1 ? hi : fill } }, A.P.bg.el)
-          const rest = { x: 0, y: 0, rotation: (rnd() - 0.5) * 50 }
-          const away = { x: side * (60 + rnd() * 90) * k, y: (rnd() - 0.5) * 220 * k, rotation: rest.rotation + (rnd() - 0.5) * 40 }
-          const [a, b] = o.land ? [away, rest] : [rest, away]
-          tl.fromTo(el, a, Object.assign({}, b, { duration: dur, ease: o.land ? "power2.out" : "none", immediateRender: true }), at)
-          els.push(el)
-        }
-        return els
-      }
-
-      /** Font size at which `text` on a block (with its padding) is exactly `w` px wide. */
-      const fitBlock = (text, w, max) => {
-        const m = Kit.measure(v, text, "b-block-t", { padding: "0" })
-        return Math.min(max, w / (m / 100 + 0.24))
-      }
-
-      /**
-       * One block of text that slides in from a side. o: { x, y, w, size, bg, color, from, at, align }
-       * size: a number, or omitted = fitted to w (capped by o.max).
-       */
-      L.block = (parent, text, o = {}) => {
-        const size = o.size ?? fitBlock(text, o.w ?? v.safe.w, o.max ?? 320 * k)
-        const bg = col(o.bg || "lime")
-        const el = h("div", { class: "b-block", style: { top: `${o.y}px`, background: bg } }, parent)
-        const t = h("div", { class: "b-block-t", style: { fontSize: `${size}px`, color: col(o.color || onCol(bg)) } }, el, text)
-        const bw = el.offsetWidth
-        const bh = el.offsetHeight
-        const left = o.align === "right" ? o.x - bw : o.align === "center" ? o.x - bw / 2 : o.x
-        el.style.left = `${left}px`
+      /** A small uppercase label with an accent bar that draws in. o: { x, y, at } */
+      L.kicker = (parent, text, o = {}) => {
+        const el = h("div", { class: "b-kicker", style: { left: `${o.x ?? v.safe.x}px`, top: `${o.y ?? v.safe.y}px` } }, parent)
+        const bar = h("i", {}, el)
+        const t = h("span", {}, el, text)
         if (o.at !== undefined) {
-          const s = o.from === "right" ? 1 : -1
-          const dist = s > 0 ? v.W - left + 40 : left + bw + 40
-          tl.fromTo(el, { x: s * dist }, { x: 0, duration: o.dur ?? 0.55, ease: "dash", immediateRender: true }, o.at)
-          tl.fromTo(t, { xPercent: s * 30 }, { xPercent: 0, duration: (o.dur ?? 0.55) + 0.2, ease: "out", immediateRender: true }, o.at + 0.04)
-          v.sfx("swish", o.at + 0.08, { gain: -8, pitch: 0.9 + v.rand() * 0.3 })
-        }
-        return { el, t, w: bw, h: bh, size, x: left, y: o.y }
-      }
-
-      /**
-       * Lines on solid blocks that stack from alternating sides, each fitted to the safe width.
-       * lines: [{ text, bg, color, max }] or strings. o: { x, y, w, at, each, gap, max, first: "left" }
-       * → { blocks, h, end }
-       */
-      L.stack = (parent, lines, o = {}) => {
-        const x = o.x ?? v.safe.x
-        const w = o.w ?? v.safe.w
-        const gap = o.gap ?? 14 * k
-        const each = o.each ?? 0.14
-        let y = o.y ?? v.safe.y
-        const firstRight = o.first === "right"
-        const blocks = lines.map((ln, i) => {
-          const L0 = typeof ln === "string" ? { text: ln } : ln
-          const right = (i % 2 === 1) !== firstRight
-          const b = L.block(parent, L0.text, { x: right ? x + w : x, y, w, align: right ? "right" : "left", from: right ? "right" : "left", bg: L0.bg || (i % 2 ? "white" : "lime"), color: L0.color, max: L0.max ?? o.max ?? 300 * k, size: L0.size, at: o.at === undefined ? undefined : o.at + i * each, dur: o.dur })
-          y += b.h + gap
-          return b
-        })
-        return { blocks, h: y - gap - (o.y ?? v.safe.y), end: (o.at ?? 0) + (lines.length - 1) * each + (o.dur ?? 0.55) }
-      }
-
-      /** Blocks leave the way they came (alternate sides). Returns the end time. */
-      L.unstack = (S, at, o = {}) => {
-        S.blocks.forEach((b, i) => {
-          const s = i % 2 ? 1 : -1
-          tl.to(b.el, { x: s * (v.W + 40), duration: o.dur ?? 0.4, ease: "power3.in" }, at + i * (o.each ?? 0.06))
-        })
-        return at + (o.dur ?? 0.4) + (S.blocks.length - 1) * (o.each ?? 0.06)
-      }
-
-      /** A small Archivo label on a block. o: { x, y, bg, color, at, align } */
-      L.label = (parent, text, o = {}) => {
-        const bg = col(o.bg || "white")
-        const el = h("div", { class: "b-label", style: { top: `${o.y}px`, background: bg, color: col(o.color || onCol(bg)) } }, parent, text)
-        const bw = el.offsetWidth
-        el.style.left = `${o.align === "right" ? o.x - bw : o.align === "center" ? o.x - bw / 2 : o.x ?? v.safe.x}px`
-        if (o.at !== undefined) {
-          tl.fromTo(el, { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.4, ease: "inout", immediateRender: true }, o.at)
+          tl.fromTo(bar, { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "glide", immediateRender: true }, o.at)
+          Kit.clipIn(v, t, o.at + 0.15, { from: "left", dur: 0.6 })
         }
         return el
       }
 
       /**
-       * The big count-up, fitted to a width. o: { x, y, w, from, to, at, dur, fmt, color, max }
-       * fmt(n) → the text (e.g. n => `${Math.round(n)}%`). → { el, size }
+       * Huge stacked lines, each fitted to the same width so the block reads as one poster.
+       * lines: ["Every", { text: "ping", kind: "accent" }, { text: "breaks your", kind: "lite" }]
+       * o: { x, y, w, gap, at, each, max, by: "chars" } → { lines, h, end, out(at) }
        */
+      L.big = (parent, lines, o = {}) => {
+        const x = o.x ?? v.safe.x
+        const w = o.w ?? v.safe.w - 24 * k
+        const gap = o.gap ?? 10 * k
+        let y = o.y ?? v.safe.y
+        const at = o.at
+        const each = o.each ?? 0.12
+        const made = lines.map((ln, i) => {
+          const L0 = typeof ln === "string" ? { text: ln } : ln
+          const cls = `b-line ${L0.kind || ""}`
+          const font = L0.kind === "lite" ? { fontFamily: "Archivo", fontWeight: 300, fontStretch: "125%", textTransform: "uppercase", letterSpacing: "0.02em" } : { fontFamily: "Anton", textTransform: "uppercase", letterSpacing: "0.005em" }
+          const size = L0.size ?? Kit.fit(v, L0.text, w * (L0.scale ?? 1), "", { max: (L0.max ?? o.max ?? 330) * k, style: font })
+          const t = Kit.title(parent, L0.text, { x: o.align === "right" ? x + w : x, y, w: w + 40 * k, size, cls, align: o.align })
+          y += size * (L0.kind === "lite" ? 1.08 : 0.98) + gap
+          if (at !== undefined) Kit.reveal(v, t, at + i * each, { by: o.by || "chars", each: 0.022, dur: 0.75, ease: "rise" })
+          return t
+        })
+        const end = at === undefined ? 0 : at + (lines.length - 1) * each + 0.75 + 0.022 * 10
+        return {
+          lines: made,
+          h: y - gap - (o.y ?? v.safe.y),
+          end,
+          out(t0, oo = {}) {
+            made.forEach((t, i) => Kit.unreveal(v, t, t0 + i * 0.05, { by: "chars", each: 0.01, dur: 0.35, to: oo.to }))
+            return t0 + 0.35 + made.length * 0.05
+          },
+        }
+      }
+
+      /** A big number that rolls into place. o: { x, y, w, value: "4.5", suffix, at, max } → { el, size } */
       L.count = (parent, o) => {
-        const fmt = o.fmt || ((n) => String(Math.round(n)))
         const w = o.w ?? v.safe.w
-        const size = Math.min(o.max ?? 640 * k, (w / Math.max(1, Kit.measure(v, fmt(o.to), "b-count"))) * 100)
-        const el = h("div", { class: "b-count", style: { left: `${o.x ?? v.safe.x}px`, top: `${o.y}px`, width: `${w}px`, fontSize: `${size}px`, color: col(o.color || "lime") } }, parent, fmt(o.from ?? 0))
-        Kit.count(v, el, o.from ?? 0, o.to, o.at, o.dur ?? 1.2, fmt)
-        tl.fromTo(el, { scale: 0.86 }, { scale: 1, duration: (o.dur ?? 1.2) + 0.2, ease: "out", immediateRender: true }, o.at)
-        tl.to(el, { scale: 1.05, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out" }, o.at + (o.dur ?? 1.2))
-        v.sfx("hit", o.at + (o.dur ?? 1.2), { gain: -5 })
+        const text = `${o.value}${o.suffix || ""}`
+        const size = Math.min((o.max ?? 600) * k, Kit.fit(v, text, w, "", { style: { fontFamily: "Anton" } }))
+        const el = h("div", { class: "b-count", style: { left: `${o.x ?? v.safe.x}px`, top: `${o.y}px`, fontSize: `${size}px` } }, parent)
+        Kit.roll(v, el, text, o.at, { dur: o.dur ?? 1.2, each: 0.08 })
+        tl.fromTo(el, { scale: 0.9, transformOrigin: "0% 100%" }, { scale: 1, duration: 1.4, ease: "rise", immediateRender: true }, o.at)
+        v.sfx("hit", o.at + (o.dur ?? 1.2), { gain: -6 })
         return { el, size }
+      }
+
+      /** A notification card in dark glass. o: { x, y, w, icon, color, title, sub, time } → el */
+      L.notif = (parent, o) => {
+        const el = h("div", { class: "b-glass b-notif", style: { left: `${o.x}px`, top: `${o.y}px`, width: o.w ? `${o.w}px` : undefined } }, parent)
+        el.innerHTML = `<span class="b-ico" style="background:${o.color || "#555"}">${icon(o.icon || "bell", 38, "currentColor", 2.2)}</span><b>${o.title}</b><span>${o.sub || ""}</span>${o.time ? `<em>${o.time}</em>` : ""}`
+        return el
+      }
+
+      /** A phone with a dark screen. o: { x, y, w, at (rises and untilts) } → Kit.phone result */
+      L.phone = (parent, o = {}) => {
+        const ph = Kit.phone(v, parent, o)
+        if (o.at !== undefined) {
+          Kit.enter(v, ph.el, o.at, { y: 260 * k, dur: 1.1, ease: "rise" })
+          Kit.tilt(v, ph.el, o.at, 1.4, {}, { from: { rx: 28, ry: -12, rz: 4 }, origin: "50% 80%" })
+          Kit.sheen(v, ph.glass, o.at + 0.6, { dur: 1.1, color: "rgba(255,255,255,0.22)" })
+        }
+        return ph
+      }
+
+      /** Text on a phone screen (screen pixels). o: { x, y, size, cls: "b-scr-h" | "b-scr-m" | "b-timer", align, w } */
+      L.screenText = (screen, text, o = {}) => {
+        const el = h("div", { class: `b-scr ${o.cls || ""}`, style: { left: `${o.x ?? 0}px`, top: `${o.y ?? 0}px`, fontSize: `${o.size ?? 28}px`, width: o.w ? `${o.w}px` : undefined, textAlign: o.align || "left", color: o.color } }, screen, text)
+        return el
+      }
+
+      /** A round accent button. o: { x, y, w, h, size } → el */
+      L.button = (parent, text, o = {}) => h("div", { class: "b-btn", style: { left: `${o.x ?? 0}px`, top: `${o.y ?? 0}px`, width: `${o.w ?? 300}px`, height: `${o.h ?? 90}px`, fontSize: `${o.size ?? 30}px` } }, parent, text)
+      /** A tap on something: it dips, and a ring of light spreads from the touch. */
+      L.tap = (el, at, x, y, g) => {
+        tl.to(el, { scale: 0.93, duration: 0.09, yoyo: true, repeat: 1, ease: "power2.out" }, at)
+        if (g) {
+          const ring = h("circle", { cx: x, cy: y, r: 10, fill: "none", stroke: "var(--accent)", "stroke-width": 4 * k }, g)
+          ring.style.stroke = "var(--accent)"
+          tl.set(ring, { autoAlpha: 0 }, 0)
+          tl.fromTo(ring, { attr: { r: 10 * k }, autoAlpha: 0.9 }, { attr: { r: 110 * k }, autoAlpha: 0, duration: 0.6, ease: "power2.out", immediateRender: false }, at)
+        }
+        v.sfx("click", at)
+      }
+
+      /** The product's mark (a ring holding a dot) and name. o: { x, y, size, name, nameSize } */
+      L.logo = (parent, o = {}) => {
+        const s = o.size ?? 90 * k
+        const el = h("div", { class: "b-logo", style: { left: `${o.x ?? 0}px`, top: `${o.y ?? 0}px`, gap: `${s * 0.3}px` } }, parent)
+        const svg = h("svg", { viewBox: "0 0 100 100", width: s, height: s }, el)
+        const ring = h("circle", { cx: 50, cy: 50, r: 40, fill: "none", "stroke-width": 12, "stroke-linecap": "round", transform: "rotate(-90 50 50)" }, svg)
+        ring.style.stroke = "var(--accent)"
+        const dot = h("circle", { cx: 50, cy: 50, r: 15 }, svg)
+        dot.style.fill = "var(--ink)"
+        const name = o.name ? h("div", { class: "b-logo-name", style: { fontSize: `${o.nameSize ?? s * 0.9}px` } }, el, o.name) : null
+        return { el, ring, dot, name, size: s }
+      }
+      /** The logo arrives: the ring draws, the dot lands, the name wipes in. */
+      L.logoIn = (lg, at) => {
+        Kit.hideUntil(v, lg.ring, at)
+        tl.fromTo(lg.ring, { drawSVG: "0%" }, { drawSVG: "100%", duration: 0.8, ease: "glide", immediateRender: false }, at)
+        G.set(lg.dot, { svgOrigin: "50 50" })
+        tl.fromTo(lg.dot, { scale: 0 }, { scale: 1, duration: 0.6, ease: "land", immediateRender: true }, at + 0.35)
+        if (lg.name) tl.fromTo(lg.name, { clipPath: "inset(-20% 100% -20% 0%)", x: -lg.size * 0.3 }, { clipPath: "inset(-20% 0% -20% 0%)", x: 0, duration: 0.8, ease: "glide", immediateRender: true }, at + 0.25)
+        v.sfx("pop", at + 0.35, { gain: -4 })
+        return at + 1.05
+      }
+
+      /**
+       * The end card: the logo, a quiet tagline and a CTA button with a sheen and a tap.
+       * o: { name, tagline, cta, at, tap } → { logo, tag, cta }
+       */
+      L.endCard = (A, o) => {
+        const p = A.P.mid.el
+        const s = o.size ?? 150 * k
+        const lg = L.logo(p, { size: s, name: o.name, nameSize: s * 0.95 })
+        const lw = lg.el.offsetWidth
+        const top = v.safe.cy - s * 1.2
+        Object.assign(lg.el.style, { left: `${v.W / 2 - lw / 2}px`, top: `${top}px` })
+        L.logoIn(lg, o.at)
+        const tag = h("div", { class: "b-tag", style: { left: "0px", width: `${v.W}px`, top: `${top + s + 60 * k}px`, fontSize: `${(o.tagSize ?? 50) * k}px` } }, p, o.tagline || "")
+        Kit.enter(v, tag, o.at + 0.4, { y: 24, dur: 0.8, ease: "rise" })
+        const bw = (o.ctaW ?? 520) * k
+        const cta = L.button(p, o.cta || "Get it free", { x: v.W / 2 - bw / 2, y: top + s + 200 * k, w: bw, h: 120 * k, size: 38 * k })
+        Kit.enter(v, cta, o.at + 0.55, { y: 30, scale: 0.9, dur: 0.8, ease: "land" })
+        Kit.sheen(v, cta, o.at + 1.2, { dur: 0.9, color: "rgba(255,255,255,0.65)" })
+        if (o.tap !== undefined) L.tap(cta, o.tap, v.W / 2, top + s + 260 * k, A.P.fg.g)
+        Kit.leak(v, o.at + 0.1, { dur: 1.6, color: "rgba(200,255,46,0.35)", blend: "screen" })
+        return { logo: lg, tag, cta }
       }
 
       /** Timed words for captions when there is no voice: L.words("Say it plainly.", 2.4, 0.26). */
@@ -159,17 +184,18 @@
           .split(/\s+/)
           .filter(Boolean)
           .map((w, i) => ({ w, s: at + i * each, e: at + (i + 1) * each - 0.02 }))
-
-      /** Captions on a black block, the spoken word in lime. o: { words, y, maxWords, from, to } */
+      /** Captions on a dark pill, the spoken word in the accent. o: { words, y, maxWords, from, to } */
       L.captions = (parent, o = {}) => Kit.captions(v, parent, Object.assign({ maxWords: 3, y: v.safe.b - 170 * k }, o, { cls: `b-caps ${o.cls || ""}` }))
 
       // ── transitions ──
-      /** Lime, black and white panels stack upward, then leave. Swap shots at .mid. */
-      L.panels = (at, o = {}) => Kit.panels(v, at, Object.assign({ colors: [C.lime, C.black, C.white], dir: "up", dur: 0.4, each: 0.08 }, o))
-      L.push = (A, B, at, o = {}) => Kit.push(v, A, B, at, Object.assign({ dir: "up", dur: 0.5 }, o))
-      L.zoomThrough = (A, B, at, x, y, o = {}) => Kit.zoomThrough(v, A, B, at, x, y, Object.assign({ zoom: 9, dur: 0.45, fromZoom: 1.5 }, o))
-      /** A hard cut with a 2-frame lime flash. */
-      L.cut = (A, B, at, o = {}) => Kit.cut(v, A, B, at, Object.assign({ flash: C.lime, frames: 2 }, o))
+      /** An accent edge, then the dark ground, sweep across on a slant; swap shots at .mid. */
+      L.wipe = (at, o = {}) => Kit.wipe(v, at, Object.assign({ kind: "diagonal", dir: "up", colors: ["var(--accent)", "var(--ground)"], dur: 0.8, lag: 0.08 }, o))
+      L.whip = (A, B, at, o = {}) => Kit.whip(v, A, B, at, Object.assign({ dir: "up", dur: 0.5 }, o))
+      L.push = (A, B, at, o = {}) => Kit.push(v, A, B, at, Object.assign({ dir: "up", dur: 0.55 }, o))
+      L.zoomThrough = (A, B, at, x, y, o = {}) => Kit.zoomThrough(v, A, B, at, x, y, Object.assign({ zoom: 9, dur: 0.5, fromZoom: 1.5 }, o))
+      /** A hard cut with a 2-frame accent flash. */
+      L.cut = (A, B, at, o = {}) => Kit.cut(v, A, B, at, Object.assign({ flash: L.colors.accent, frames: 2, strength: 0.85 }, o))
+      L.panels = (at, o = {}) => Kit.panels(v, at, Object.assign({ colors: [L.colors.accent, L.colors.ground], dir: "up", dur: 0.4, each: 0.08 }, o))
 
       return L
     },

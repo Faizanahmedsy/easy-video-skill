@@ -12,8 +12,12 @@ words, no raw errors, say how long each wait is.
   `Date.now`, `requestAnimationFrame` or CSS animations/transitions. Use
   `v.tl`, `v.rand()` (seeded) and `v.onFrame(fn)`.
 - Sounds go on the picture's clock with `v.sfx(kind, at)`.
-- Check stills (`--at`) before every draft. The final only renders the
-  exact inputs of the approved draft.
+- Check stills (`--at`) before every draft, then the layout check
+  (`--check`); `scripts/draft.sh` runs the check and stops on a problem
+  (`--force` skips it). The final only renders the exact inputs of the
+  approved draft, with 8-sample motion blur.
+- Craft: frame 0 composed, depth in every shot (`L.shot`), a slow camera
+  (`A.P.drift`), motivated transitions, one main movement at a time.
 - Sample data on screen unless the user gives real figures.
 
 ## File map
@@ -24,9 +28,9 @@ words, no raw errors, say how long each wait is.
 | `engine/kit.js` | The motion kit (`Kit.*`), listed in `docs/kit.md` |
 | `engine/kit.css` | Stage layers and shared styles |
 | `engine/page.html` | The one page every project renders in |
-| `engine/render.mjs` | `--at`, `--estimate`, `--draft`, `--final` |
-| `looks/clean/` | Product video look (light, one accent, flat cards, charts) |
-| `looks/bold/` | Reel look (dark duotone, huge type, colour blocks) |
+| `engine/render.mjs` | `--at`, `--check`, `--estimate`, `--draft`, `--final` (`--workers N`) |
+| `looks/clean/` | Product video look (lit light ground, 3D app windows, soft shadows, one accent) |
+| `looks/bold/` | Reel look (dark lit ground, huge poster type, glass, a phone, one accent) |
 | `scripts/setup.sh`, `scripts/selftest.sh` | Install once, then a 2-second test render |
 | `scripts/new.sh <name> --type product\|reel` | New project in `~/easy-videos/<name>` |
 | `scripts/voice.sh <project> <audio>` | Brings in the voice file, writes `vo/words.js` |

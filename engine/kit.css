@@ -2,11 +2,12 @@
  * kit.css: the stage and the base classes kit.js builds with.
  * Colours and fonts come from the look (looks/<name>/look.css), through
  * these custom properties: --ground --ink --muted --accent --on-accent
- * --line --card. A project can override any of them with config `palette`.
+ * --line --card, and --glow-1 … --glow-4 for the light in the backdrop.
+ * A project can override any of them with config `palette`.
  *
  * Layers, back to front:
- *   .backdrop (ground, grid, spotlight)  →  #cam (#scenes, #fx)  →
- *   #over (.panel, captions, .grain)     →  #flash  →  #vignette
+ *   .backdrop (ground, glow, dots, grid)  →  #cam (#scenes, #fx)  →
+ *   #over (.panel, wipes, captions, leaks, .grain)  →  #flash  →  #vignette
  */
 * {
   box-sizing: border-box;
@@ -27,6 +28,11 @@ body {
   --on-accent: #fff;
   --line: #e1e3e8;
   --card: #fff;
+  --glow-1: rgba(120, 150, 255, 0.35);
+  --glow-2: rgba(110, 220, 210, 0.3);
+  --glow-3: rgba(255, 170, 200, 0.3);
+  --glow-4: rgba(255, 210, 150, 0.3);
+  --dots: rgba(20, 24, 40, 0.07);
   position: relative;
   overflow: hidden;
   background: var(--ground);
@@ -114,6 +120,48 @@ body {
 .grid-major {
   stroke: rgba(10, 10, 12, 0.09);
 }
+.glow-pool,
+.leak {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+.dot-grid {
+  stroke: var(--dots);
+}
+.scenery {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.bokeh {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.sweep {
+  position: absolute;
+  inset: -10% -60%;
+  z-index: 2;
+  pointer-events: none;
+}
+.sheen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 5;
+}
+.sheen > i {
+  position: absolute;
+  inset: -20% 0;
+  display: block;
+}
+.wipe {
+  z-index: 1;
+}
 .spot {
   position: absolute;
   border-radius: 50%;
@@ -173,6 +221,97 @@ body {
 .title .em {
   position: relative;
   z-index: 0;
+}
+.title .lite {
+  font-weight: 300;
+  color: var(--muted);
+}
+
+/* a number that rolls into place (Kit.roll) */
+.roll {
+  white-space: nowrap;
+}
+.roll-col {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  line-height: 1.16;
+  margin: -0.08em 0;
+}
+.roll-sizer {
+  visibility: hidden;
+}
+.roll-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.roll-strip > span {
+  line-height: 1.16;
+}
+
+/* a phone (Kit.phone): body, keys, screen, camera pill, glass */
+.phone {
+  position: absolute;
+  border-radius: calc(var(--pw) * 0.16);
+  background: linear-gradient(145deg, #2a2d36, #0c0d12 40%, #1b1d24);
+  padding: calc(var(--pw) * 0.035);
+  box-shadow:
+    0 0 0 calc(var(--pw) * 0.004) rgba(255, 255, 255, 0.18) inset,
+    0 calc(var(--pw) * 0.09) calc(var(--pw) * 0.18) calc(var(--pw) * -0.05) rgba(10, 12, 30, 0.45),
+    0 calc(var(--pw) * 0.02) calc(var(--pw) * 0.04) rgba(10, 12, 30, 0.2);
+}
+.phone-screen {
+  position: absolute;
+  inset: calc(var(--pw) * 0.035);
+  border-radius: calc(var(--pw) * 0.125);
+  overflow: hidden;
+  background: var(--card);
+}
+.phone-pill {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--pw) * 0.06);
+  width: calc(var(--pw) * 0.26);
+  height: calc(var(--pw) * 0.072);
+  margin-left: calc(var(--pw) * -0.13);
+  border-radius: 999px;
+  background: #050507;
+  z-index: 3;
+}
+.phone-glass {
+  position: absolute;
+  inset: calc(var(--pw) * 0.035);
+  border-radius: calc(var(--pw) * 0.125);
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 32%, rgba(255, 255, 255, 0) 70%, rgba(255, 255, 255, 0.06) 100%);
+  pointer-events: none;
+  z-index: 4;
+}
+.phone-key {
+  position: absolute;
+  width: calc(var(--pw) * 0.012);
+  border-radius: 2px;
+  background: #23252d;
+}
+.phone-key.k1 {
+  left: calc(var(--pw) * -0.01);
+  top: 22%;
+  height: 5%;
+}
+.phone-key.k2 {
+  left: calc(var(--pw) * -0.01);
+  top: 30%;
+  height: 9%;
+}
+.phone-key.k3 {
+  right: calc(var(--pw) * -0.01);
+  top: 27%;
+  height: 12%;
 }
 .mark {
   position: absolute;
@@ -284,11 +423,20 @@ body {
 }
 
 /* ── cursor ── */
+.cursor {
+  filter: drop-shadow(0 6px 10px rgba(10, 12, 30, 0.28));
+}
 .cursor-arrow {
   fill: var(--ink);
   stroke: #fff;
   stroke-width: 2.5;
   stroke-linejoin: round;
+}
+.ring-track {
+  stroke: var(--line);
+}
+.ring-arc {
+  stroke: var(--accent);
 }
 .cursor-ripple {
   fill: none;

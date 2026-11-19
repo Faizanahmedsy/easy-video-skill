@@ -25,7 +25,7 @@ if ! starts && [ "$(uname)" = Linux ]; then
   elif sudo -n true 2>/dev/null; then sudo -n "$(command -v node)" node_modules/playwright/cli.js install-deps chromium >/dev/null 2>&1 || true
   fi
 fi
-starts || die "Chromium is installed but can't start: some system libraries are missing. Run this once (it asks for your password): cd \"$SKILL/engine\" && sudo npx playwright install-deps chromium"
+starts || die "Chromium is installed but can't start: some system libraries are missing. Run this once (it asks for your computer login): cd \"$SKILL/engine\" && sudo npx playwright install-deps chromium"
 say "  Chromium: ok"
 
 # 4. ffmpeg (turns the pictures into an MP4)

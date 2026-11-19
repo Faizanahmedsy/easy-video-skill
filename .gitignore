@@ -4,3 +4,4 @@ out/
 .runtime/
 .DS_Store
 __pycache__/
+examples/*/vo/

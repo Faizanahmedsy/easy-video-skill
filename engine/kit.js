@@ -28,6 +28,10 @@
   CE.create("inout", "0.65,0,0.35,1") // camera and UI moves
   CE.create("pop", "M0,0 C0.18,0.7 0.28,1.08 0.52,1.03 0.74,0.99 0.86,1 1,1") // a small overshoot
   CE.create("dash", "0.8,0,0.12,1") // very fast middle: slides and pushes
+  CE.create("rise", "0.2,1,0.24,1") // masked type: quick out of the mask, a long calm settle
+  CE.create("land", "M0,0 C0.12,0.7 0.22,1.12 0.4,1.06 0.56,1.01 0.7,0.995 1,1") // arrive, overshoot a hair, rest
+  CE.create("glide", "0.7,0,0.2,1") // camera: slow start, long glide
+  CE.create("whip", "0.86,0,0.1,1") // whip pans: nearly all the motion in the middle
 
   const SVGNS = "http://www.w3.org/2000/svg"
   const SVG_TAGS = /^(svg|g|path|circle|ellipse|rect|line|polyline|polygon|text|tspan|defs|clipPath|linearGradient|radialGradient|stop|mask|pattern|image)$/
@@ -138,7 +142,13 @@
       frameFns: [],
       pending: [],
       cues: [],
+      busy: [],
       looks: {},
+    }
+    /** Mark a time span the layout check should skip (a transition, an intended overlap). */
+    v.quiet = (from, to) => {
+      v.busy.push([Math.max(0, from), to])
+      return v
     }
     let uid = 0
     v.uid = (p = "u") => `${p}${++uid}`
@@ -169,15 +179,56 @@
   // ──────────────────────────────────────────────────────── backdrop ──
 
   /**
-   * The ground behind every scene (outside the camera):
-   *   "grid"  light ground, a fine drafting grid, a soft spotlight that drifts
-   *   "spot"  dark ground, one large spotlight that drifts
+   * The ground behind every scene (outside the camera). One word or several,
+   * e.g. backdrop: "glow dots":
+   *   "glow"  soft coloured light that drifts slowly (colours --glow-1 … --glow-4 from the look)
+   *   "dots"  a faint dot grid
+   *   "grid"  a fine drafting grid that creeps, with a soft spotlight
+   *   "spot"  one large spotlight that drifts (for dark grounds)
    *   "none"  just the ground colour (--ground)
    */
-  function backdrop(v, kind = "none") {
+  function backdrop(v, kinds = "none") {
     const bd = document.querySelector("#stage .backdrop")
     const { W, H, k, tl, cfg } = v
     const dur = cfg.duration
+    const list = String(kinds || "none").split(/[\s,+]+/)
+    if (list.includes("glow")) glowField(v, bd)
+    if (list.includes("dots")) {
+      const step = 46 * k
+      let d = ""
+      for (let x = step / 2; x < W; x += step) for (let y = step / 2; y < H; y += step) d += `M${x.toFixed(1)},${y.toFixed(1)}h0.01`
+      const svg = h("svg", { class: "stage-svg dots", viewBox: `0 0 ${W} ${H}` }, bd)
+      h("path", { d, class: "dot-grid", fill: "none", "stroke-width": 3.2 * k, "stroke-linecap": "round" }, svg)
+    }
+    for (const kind of list) backdropOld(v, bd, kind, W, H, k, tl, dur)
+  }
+
+  /**
+   * Large soft pools of coloured light, each drifting and breathing on its own
+   * slow sine, so the ground has depth and is never dead. Colours come from the
+   * look as --glow-1 … --glow-4 (a project can change them with `palette`).
+   */
+  function glowField(v, bd) {
+    const { W, H, tl, cfg } = v
+    const pools = [
+      { x: 0.78, y: 0.12, s: 0.95, c: 1, dx: -9, dy: 7, p: 11 },
+      { x: 0.12, y: 0.86, s: 0.9, c: 2, dx: 10, dy: -8, p: 13 },
+      { x: 0.08, y: 0.08, s: 0.62, c: 3, dx: 8, dy: 9, p: 9 },
+      { x: 0.92, y: 0.9, s: 0.7, c: 4, dx: -8, dy: -7, p: 10 },
+      { x: 0.5, y: 0.5, s: 0.55, c: 1, dx: 6, dy: -5, p: 8, a: 0.4 },
+    ]
+    const big = Math.max(W, H)
+    pools.forEach((pl) => {
+      const s = pl.s * big
+      const el = h("div", {
+        class: "glow-pool",
+        style: { left: `${pl.x * W - s / 2}px`, top: `${pl.y * H - s / 2}px`, width: `${s}px`, height: `${s}px`, background: `radial-gradient(closest-side, var(--glow-${pl.c}) 0%, transparent 100%)`, opacity: String(pl.a ?? 1) },
+      }, bd)
+      tl.add(G.fromTo(el, { xPercent: 0, yPercent: 0, scale: 1 }, { xPercent: pl.dx, yPercent: pl.dy, scale: 1.1, duration: pl.p, repeat: Math.ceil(cfg.duration / pl.p), yoyo: true, ease: "sine.inOut", immediateRender: true }), 0)
+    })
+  }
+
+  function backdropOld(v, bd, kind, W, H, k, tl, dur) {
     if (kind === "grid") {
       const g = h("g", {}, h("svg", { class: "stage-svg", viewBox: `0 0 ${W} ${H}` }, bd))
       const step = 64 * k
@@ -199,10 +250,22 @@
     }
   }
 
-  /** Film finish: fine frame-locked grain and a soft vignette. o: { grain: 0.06, vignette: 0.25 } */
+  /**
+   * Film finish over the whole frame: fine frame-locked grain, a soft vignette
+   * and, optionally, slow light washes that drift across (leaks).
+   * o: { grain: 0.06, vignette: 0.25, tint: "rgb(…)" (vignette colour),
+   *      leaks: [{ color, x, y, size }] , blend }
+   */
   function finish(v, o = {}) {
     const vig = document.getElementById("vignette")
     vig.style.opacity = String(o.vignette ?? 0.25)
+    if (o.tint) vig.style.background = `radial-gradient(ellipse 78% 72% at 50% 46%, transparent 50%, ${o.tint} 130%)`
+    ;(o.leaks || []).forEach((lk, i) => {
+      const s = (lk.size ?? 0.9) * Math.max(v.W, v.H)
+      const el = h("div", { class: "leak", style: { left: `${(lk.x ?? 0.5) * v.W - s / 2}px`, top: `${(lk.y ?? 0.5) * v.H - s / 2}px`, width: `${s}px`, height: `${s}px`, background: `radial-gradient(closest-side, ${lk.color}, transparent)`, mixBlendMode: lk.blend || o.blend || "soft-light" } }, v.over)
+      const p = 9 + i * 3.5
+      v.tl.add(G.fromTo(el, { xPercent: 0, yPercent: 0, scale: 1 }, { xPercent: i % 2 ? 16 : -14, yPercent: i % 2 ? -9 : 11, scale: 1.16, duration: p, repeat: Math.ceil(v.cfg.duration / p), yoyo: true, ease: "sine.inOut", immediateRender: true }), 0)
+    })
     if (!o.grain && o.grain !== undefined) return
     const size = 192
     const tiles = []
@@ -227,8 +290,58 @@
       const f = Math.floor(t * v.fps + 1e-3)
       if (f === last) return
       last = f
-      tiles.forEach((el, i) => (el.style.visibility = i === ((f % 4) + 4) % 4 ? "visible" : "hidden"))
+      const on = ((f % 4) + 4) % 4
+      tiles.forEach((el, i) => (el.style.visibility = i === on ? "visible" : "hidden"))
+      const r = seeded(f * 7919 + 5)
+      tiles[on].style.backgroundPosition = `${Math.floor(r() * size)}px ${Math.floor(r() * size)}px`
     })
+  }
+
+  /**
+   * Soft out-of-focus discs that drift and breathe, for depth. Put small faint
+   * ones in a back plane and a few big soft ones in a front plane.
+   * o: { count, size: [min, max], opacity: [min, max], colors, soft (0–1), seed, area: { x, y, w, h } }
+   */
+  function bokeh(v, parent, o = {}) {
+    const rnd = seeded(o.seed ?? 21)
+    const area = o.area || { x: 0, y: 0, w: v.W, h: v.H }
+    const [s0, s1] = (o.size || [24, 110]).map((s) => s * v.k)
+    const [a0, a1] = o.opacity || [0.2, 0.55]
+    const colors = o.colors || ["#fff", "var(--glow-1)", "var(--glow-2)"]
+    const soft = o.soft ?? 0.4
+    const els = []
+    for (let i = 0; i < (o.count ?? 10); i++) {
+      const s = s0 + rnd() * (s1 - s0)
+      const c = colors[Math.floor(rnd() * colors.length)]
+      const core = Math.round((1 - soft) * 62)
+      const el = h("div", {
+        class: "bokeh",
+        style: { left: `${area.x + rnd() * area.w - s / 2}px`, top: `${area.y + rnd() * area.h - s / 2}px`, width: `${s}px`, height: `${s}px`, background: `radial-gradient(closest-side, ${c} ${core}%, transparent 100%)`, opacity: String(a0 + rnd() * (a1 - a0)) },
+      }, parent)
+      const p = 3.2 + rnd() * 4
+      v.tl.add(G.fromTo(el, { x: 0, y: 0, scale: 1 }, { x: (rnd() - 0.5) * 70 * v.k, y: (rnd() - 0.5) * 60 * v.k, scale: 0.85 + rnd() * 0.3, duration: p, repeat: Math.ceil(v.cfg.duration / p), yoyo: true, ease: "sine.inOut", immediateRender: true }), 0)
+      els.push(el)
+    }
+    return els
+  }
+
+  /** A band of light that sweeps across the whole frame (on a reveal). o: { color, angle, dur, opacity } */
+  function leak(v, at, o = {}) {
+    const el = h("div", { class: "sweep", style: { background: `linear-gradient(${o.angle ?? 105}deg, transparent 30%, ${o.color || "rgba(255,255,255,0.55)"} 50%, transparent 70%)`, mixBlendMode: o.blend || "soft-light" } }, v.over)
+    const dur = o.dur ?? 1.2
+    v.tl.set(el, { autoAlpha: 0 }, 0)
+    v.tl.fromTo(el, { xPercent: -80, autoAlpha: o.opacity ?? 1 }, { xPercent: 80, duration: dur, ease: "sine.inOut", immediateRender: false }, at)
+    v.tl.set(el, { autoAlpha: 0 }, at + dur)
+    return at + dur
+  }
+
+  /** A glossy highlight that sweeps across one element (a card, a button, a phone). o: { color, angle, dur } */
+  function sheen(v, el, at, o = {}) {
+    const wrap = h("div", { class: "sheen" }, el)
+    const band = h("i", { style: { background: `linear-gradient(${o.angle ?? 110}deg, transparent 30%, ${o.color || "rgba(255,255,255,0.7)"} 50%, transparent 70%)` } }, wrap)
+    v.tl.set(band, { xPercent: -160 }, 0)
+    v.tl.to(band, { xPercent: 160, duration: o.dur ?? 0.9, ease: o.ease || "power2.inOut" }, at)
+    return at + (o.dur ?? 0.9)
   }
 
   // ─────────────────────────────────────────────────── scenes + camera ──
@@ -264,6 +377,11 @@
       }
       return P
     }
+    /**
+     * The slow camera every shot should have: a gentle drift sideways and a
+     * small push in, near planes moving more (parallax). o: { x: -36, y: 0, zoom: 1.05, from: { x: 24 } }
+     */
+    P.drift = (at, dur, o = {}) => P.move(at, dur, { x: o.x ?? -36 * v.k, y: o.y ?? 0, zoom: o.zoom ?? 1.05, rotate: o.rotate ?? 0 }, { from: Object.assign({ x: 24 * v.k, zoom: 1 }, o.from), ease: o.ease || "power1.inOut" })
     return P
   }
 
@@ -273,14 +391,43 @@
     return { S, P: planes(v, S, depths) }
   }
 
+  /**
+   * Turn a flat element in 3D space (a window, a card, a phone), with perspective.
+   * Kit.tilt(v, el, at, dur, { rx: 0, ry: 0, rz: 0 }, { from: { rx: 24, ry: -18 }, ease, depth })
+   */
+  function tilt(v, el, at, dur, to = {}, o = {}) {
+    const st = (q) => ({ rotationX: q.rx ?? 0, rotationY: q.ry ?? 0, rotationZ: q.rz ?? 0, z: q.z ?? 0 })
+    G.set(el, { transformPerspective: o.depth ?? 2400 * v.k, transformOrigin: o.origin || "50% 50%" })
+    if (o.from) v.tl.set(el, st(o.from), at)
+    v.tl.to(el, Object.assign(st(to), { duration: dur, ease: o.ease || "glide" }), at)
+    return at + dur
+  }
+
+  /**
+   * Rack focus: blur an element (usually a plane: A.P.bg.el) in or out, like a
+   * camera lens. Kit.focus(v, A.P.bg.el, at, { blur: 10, dur: 0.6 }); blur 0 = sharp.
+   */
+  function focus(v, el, at, o = {}) {
+    const to = o.blur ?? 0
+    const from = o.from ?? (to > 0 ? 0 : 10)
+    const vars = { filter: `blur(${to * v.k}px)`, duration: o.dur ?? 0.6, ease: o.ease || "power2.inOut", immediateRender: at <= 0 }
+    v.tl.fromTo(el, { filter: `blur(${from * v.k}px)` }, vars, at)
+    if (to === 0) v.tl.set(el, { filter: "none" }, at + vars.duration)
+    return at + vars.duration
+  }
+
   // ──────────────────────────────────────────────────────────── text ──
 
   const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-  /** "|" breaks a line, *word* marks the highlight (class "em"). */
+  /** "|" breaks a line, *word* marks the highlight (class "em"), ^word^ a lighter, quieter word (class "lite"). */
   function markup(str) {
     return str
       .split("|")
-      .map((line) => esc(line.trim()).replace(/\*([^*]+)\*/g, '<span class="em">$1</span>'))
+      .map((line) =>
+        esc(line.trim())
+          .replace(/\*([^*]+)\*/g, '<span class="em">$1</span>')
+          .replace(/\^([^^]+)\^/g, '<span class="lite">$1</span>'),
+      )
       .join("<br>")
   }
 
@@ -308,19 +455,38 @@
     el.innerHTML = markup(str)
     place(el, o)
     const split = new window.SplitText(el, { type: "lines,words,chars", mask: "lines", linesClass: "ln", wordsClass: "wd", charsClass: "ch", aria: "none" })
-    const em = [...el.querySelectorAll(".em")].filter((e) => e.textContent.trim())
-    return { el, split, lines: split.lines, words: split.words, chars: split.chars, em }
+    const pick = (c) => [...el.querySelectorAll(c)].filter((e) => e.textContent.trim())
+    return { el, split, lines: split.lines, words: split.words, chars: split.chars, em: pick(".em"), lite: pick(".lite") }
   }
 
-  /** Masked entrance: lines / words / chars rise out of their line masks. Returns the end time. */
+  /**
+   * Masked entrance: lines / words / chars rise out of their line masks. Returns the end time.
+   * o: { by: "lines" | "words" | "chars", each, dur, ease, from: "above", fade, rotate (deg, a small tip-in), blur (px, words come into focus) }
+   */
   function reveal(v, t, at, o = {}) {
     const by = o.by || "lines"
     const targets = o.targets || t[by]
     const each = o.each ?? { lines: 0.1, words: 0.06, chars: 0.022 }[by]
-    const dur = o.dur ?? (by === "chars" ? 0.6 : 0.8)
+    const dur = o.dur ?? (by === "chars" ? 0.7 : 0.9)
     const dir = o.from === "above" ? -1 : 1
-    v.tl.fromTo(targets, { yPercent: dir * 112, autoAlpha: o.fade ? 0 : 1 }, { yPercent: 0, autoAlpha: 1, duration: dur, ease: o.ease || "out", stagger: each, immediateRender: true }, at)
+    const a = { yPercent: dir * (o.distance ?? 115), rotation: o.rotate ?? 0, transformOrigin: "0% 100%", autoAlpha: o.fade ? 0 : 1 }
+    const b = { yPercent: 0, rotation: 0, autoAlpha: 1, duration: dur, ease: o.ease || "rise", stagger: each, immediateRender: true }
+    if (o.blur) {
+      a.filter = `blur(${o.blur}px)`
+      b.filter = "blur(0px)"
+    }
+    v.tl.fromTo(targets, a, b, at)
     return at + (targets.length - 1) * each + dur
+  }
+  /** Letter-spacing eases from wide to tight (a title settling): o: { from: "0.3em", to: "-0.02em", dur } */
+  function tracking(v, el, at, o = {}) {
+    v.tl.fromTo(el, { letterSpacing: o.from ?? "0.3em" }, { letterSpacing: o.to ?? "-0.02em", duration: o.dur ?? 1.2, ease: o.ease || "out", immediateRender: at <= 0 }, at)
+    return at + (o.dur ?? 1.2)
+  }
+  /** Font weight eases from → to (variable fonts: Outfit, DM Sans, Archivo). o: { from: 200, to: 800, dur } */
+  function weight(v, els, at, o = {}) {
+    v.tl.fromTo(els, { fontWeight: o.from ?? 200 }, { fontWeight: o.to ?? 800, duration: o.dur ?? 0.8, ease: o.ease || "power2.inOut", immediateRender: at <= 0 }, at)
+    return at + (o.dur ?? 0.8)
   }
   /** Masked exit: everything slides up (or to: "below") behind its mask. */
   function unreveal(v, t, at, o = {}) {
@@ -362,6 +528,42 @@
     v.tl.fromTo(st, { n: from }, { n: to, duration: dur, ease: "power2.out", immediateRender: false, onUpdate: () => (el.textContent = f(st.n)) }, at)
   }
 
+  /**
+   * A number that rolls into place digit by digit, like a counter on a board.
+   * Kit.roll(v, el, "1,284", at, { dur: 1.1, each: 0.06 }): el's text becomes the
+   * columns; non-digits (",", "%", "$", "h") stay still. Returns the end time.
+   */
+  function roll(v, el, str, at, o = {}) {
+    el.textContent = ""
+    el.classList.add("roll")
+    el.dataset.text = String(str)
+    const chars = [...String(str)]
+    const digits = chars.filter((c) => /\d/.test(c)).length
+    let di = 0
+    const dur = o.dur ?? 1.1
+    const each = o.each ?? 0.06
+    chars.forEach((c) => {
+      if (!/\d/.test(c)) {
+        h("span", { class: "roll-fix" }, el, c)
+        return
+      }
+      const n = Number(c)
+      const col = h("span", { class: "roll-col" }, el)
+      h("span", { class: "roll-sizer" }, col, "0")
+      const strip = h("span", { class: "roll-strip" }, col)
+      const loops = o.loops ?? 1
+      const seq = []
+      for (let l = 0; l < loops; l++) for (let d = 0; d < 10; d++) seq.push(d)
+      for (let d = 0; d <= n; d++) seq.push(d)
+      seq.forEach((d) => h("span", {}, strip, String(d)))
+      const end = -(seq.length - 1) / seq.length * 100
+      // the right-most digit spins the longest, like a real counter
+      v.tl.fromTo(strip, { yPercent: 0 }, { yPercent: end, duration: dur + di * each, ease: o.ease || "power3.out", immediateRender: true }, at)
+      di++
+    })
+    return at + dur + (digits - 1) * each
+  }
+
   /** Type text into an element, `cps` characters a second. Returns the end time. */
   function typeOn(v, el, str, at, cps = 24) {
     const st = { n: 0 }
@@ -386,11 +588,110 @@
     return Math.max(o.min ?? 8, Math.min(o.max ?? 3000, s))
   }
 
+  // ───────────────────────────────────────────────────────── scenery ──
+
+  /**
+   * A full-scene background inside one plane (usually A.P.bg), drawn larger
+   * than the frame so camera moves and parallax never show its edges. Seeded
+   * and on the timeline, like everything else. Colours come from the look.
+   *   "studio"  a seamless photo-studio wall curving into the floor, a soft key light that drifts
+   *   "rays"    soft beams of light fanning down from above, turning slowly, with dust rising through them
+   *   "stars"   a deep field of small lights in two layers drifting past, a few of them twinkling
+   * Kit.scenery(v, A.P.bg, "rays", { from: 0, to: 4, x, y, seed }) → { el }
+   */
+  function scenery(v, plane, kind, o = {}) {
+    const { W, H, k } = v
+    const bleed = 0.22
+    const X0 = -W * bleed
+    const Y0 = -H * bleed
+    const BW = W * (1 + 2 * bleed)
+    const BH = H * (1 + 2 * bleed)
+    const from = o.from ?? 0
+    const span = (o.to ?? v.cfg.duration) - from
+    const rnd = seeded(o.seed ?? 31)
+    const el = h("div", { class: `scenery scenery-${kind}` }, plane.el)
+    plane.el.insertBefore(el, plane.el.firstChild)
+    const svg = h("svg", { class: "stage-svg", viewBox: `0 0 ${W} ${H}` }, el)
+    const g = h("g", {}, svg)
+    const id = v.uid("sc")
+    const grad = (stops, x2 = 0, y2 = 1, radial = false) => {
+      const gid = v.uid(id)
+      const gr = radial ? h("radialGradient", { id: gid }, v.defs) : h("linearGradient", { id: gid, x1: 0, y1: 0, x2, y2 }, v.defs)
+      // colours go in style, not attributes, so CSS variables work
+      stops.forEach(([off, col, op]) => h("stop", { offset: off, style: { stopColor: col, stopOpacity: String(op ?? 1) } }, gr))
+      return `url(#${gid})`
+    }
+    if (kind === "studio") {
+      const hz = o.y ?? H * 0.68
+      h("rect", { x: X0, y: Y0, width: BW, height: BH, fill: grad([[0, "var(--ground)"], [0.62, "var(--card)"], [1, "var(--ground)"]]) }, g)
+      // the curve where the wall becomes the floor
+      h("path", { d: `M${X0},${hz} C${W * 0.3},${hz + 40 * k} ${W * 0.7},${hz + 40 * k} ${X0 + BW},${hz} V${Y0 + BH} H${X0} Z`, fill: grad([[0, "var(--card)", 0.9], [1, "var(--ground)", 1]]) }, g)
+      h("ellipse", { cx: o.x ?? W / 2, cy: hz + 70 * k, rx: W * 0.32, ry: 46 * k, fill: grad([[0, "rgba(11,16,32,0.16)"], [1, "rgba(11,16,32,0)"]], 0, 0, true) }, g)
+      const key = h("ellipse", { cx: o.x ?? W / 2, cy: H * 0.32, rx: W * 0.5, ry: H * 0.48, fill: grad([[0, "var(--glow-1)"], [1, "var(--glow-1)", 0]], 0, 0, true) }, g)
+      v.tl.fromTo(key, { x: -W * 0.06 }, { x: W * 0.06, duration: span, ease: "sine.inOut", immediateRender: from <= 0 }, from)
+    } else if (kind === "rays") {
+      const cx = o.x ?? W * 0.5
+      const cy = o.y ?? -H * 0.25
+      const fan = h("g", {}, g)
+      const n = o.count ?? 9
+      for (let i = 0; i < n; i++) {
+        const a = -Math.PI / 2 - 0.9 + (1.8 * (i + rnd() * 0.6)) / n
+        const len = Math.hypot(W, H) * 1.3
+        const wd = (0.04 + rnd() * 0.06) * len
+        const ax = cx + Math.cos(-a) * len
+        const ay = cy + Math.sin(-a) * len
+        const nx = Math.cos(-a + Math.PI / 2) * wd
+        const ny = Math.sin(-a + Math.PI / 2) * wd
+        const ray = h("path", { d: `M${cx},${cy} L${ax + nx},${ay + ny} L${ax - nx},${ay - ny} Z`, fill: grad([[0, "var(--glow-1)", 0.9], [1, "var(--glow-1)", 0]], ax - cx > 0 ? 0.3 : -0.3, 1), opacity: 0.25 + rnd() * 0.35 }, fan)
+        v.tl.fromTo(ray, { opacity: 0.15 + rnd() * 0.2 }, { opacity: 0.45 + rnd() * 0.3, duration: 2.5 + rnd() * 2.5, repeat: Math.ceil(span / 2.5), yoyo: true, ease: "sine.inOut", immediateRender: from <= 0 }, from)
+      }
+      G.set(fan, { svgOrigin: `${cx} ${cy}` })
+      v.tl.fromTo(fan, { rotation: -4 }, { rotation: 4, duration: span, ease: "sine.inOut", immediateRender: from <= 0 }, from)
+      for (let i = 0; i < (o.dust ?? 26); i++) {
+        const d = h("circle", { cx: X0 + rnd() * BW, cy: rnd() * H * 1.1, r: (1.5 + rnd() * 3.5) * k, fill: "#fff", opacity: 0.2 + rnd() * 0.5 }, g)
+        v.tl.fromTo(d, { y: 0, x: 0 }, { y: -(80 + rnd() * 160) * k, x: (rnd() - 0.5) * 60 * k, duration: span, ease: "none", immediateRender: from <= 0 }, from)
+      }
+    } else if (kind === "stars") {
+      for (const [layer, count, size, drift] of [[0, 70, 2.2, 30], [1, 26, 4, 80]]) {
+        let d = ""
+        for (let i = 0; i < count; i++) d += `M${(X0 + rnd() * BW).toFixed(1)},${(Y0 + rnd() * BH).toFixed(1)}h0.01`
+        const lg = h("path", { d, fill: "none", stroke: "#fff", "stroke-width": size * k, "stroke-linecap": "round", opacity: layer ? 0.55 : 0.3 }, g)
+        v.tl.fromTo(lg, { x: drift * k, y: drift * 0.4 * k }, { x: -drift * k, y: -drift * 0.4 * k, duration: span, ease: "none", immediateRender: from <= 0 }, from)
+      }
+      for (let i = 0; i < 10; i++) {
+        const tw = h("circle", { cx: rnd() * W, cy: rnd() * H, r: (2 + rnd() * 2.5) * k, fill: "#fff" }, g)
+        const p = 0.8 + rnd() * 1.4
+        v.tl.fromTo(tw, { opacity: 0.1 }, { opacity: 0.9, duration: p, repeat: Math.ceil(span / p), yoyo: true, ease: "sine.inOut", immediateRender: from <= 0 }, from + rnd())
+      }
+    }
+    return { el }
+  }
+
   // ──────────────────────────────────────────────── cards, data, cursor ──
 
   /** A card (div) at a position: Kit.card(parent, { x, y, w, h, cls }). */
   function card(parent, o = {}) {
     return h("div", { class: `card ${o.cls || ""}`, style: { left: `${o.x ?? 0}px`, top: `${o.y ?? 0}px`, width: o.w ? `${o.w}px` : undefined, height: o.h ? `${o.h}px` : undefined } }, parent, o.text)
+  }
+
+  /**
+   * A phone: a rounded body with a thin bezel, side keys, a camera pill and a
+   * glass reflection. Build the app inside `.screen` (screen pixels, origin top-left).
+   * Kit.phone(v, parent, { x, y, w }) → { el, screen, glass, w, h, sw, sh }  (h = w × 2.05)
+   */
+  function phone(v, parent, o = {}) {
+    const w = o.w ?? 520 * v.k
+    const hh = w * (o.ratio ?? 2.05)
+    const el = h("div", { class: `phone ${o.cls || ""}`, style: { left: `${o.x ?? 0}px`, top: `${o.y ?? 0}px`, width: `${w}px`, height: `${hh}px` } }, parent)
+    el.style.setProperty("--pw", `${w}px`)
+    h("i", { class: "phone-key k1" }, el)
+    h("i", { class: "phone-key k2" }, el)
+    h("i", { class: "phone-key k3" }, el)
+    const screen = h("div", { class: "phone-screen" }, el)
+    h("div", { class: "phone-pill" }, el)
+    const glass = h("div", { class: "phone-glass" }, el)
+    const bez = w * 0.035
+    return { el, screen, glass, w, h: hh, sw: w - bez * 2, sh: hh - bez * 2 }
   }
 
   /** An entrance: rise and settle. Kit.enter(v, el, at, { y: 40, scale: 0.96, dur }) */
@@ -526,6 +827,47 @@
     return { g, line, dot, pts, end: at + dur }
   }
 
+  /**
+   * A progress ring that fills: o: { cx, cy, r, w, value (0–1), at, dur, cls } → { track, arc, end }.
+   * Styling: .ring-track and .ring-arc in the look's CSS (or o.color).
+   */
+  function ring(v, parent, o) {
+    const g = h("g", { class: `ring ${o.cls || ""}` }, parent)
+    const w = o.w ?? 14 * v.k
+    h("circle", { cx: o.cx, cy: o.cy, r: o.r, class: "ring-track", fill: "none", "stroke-width": w }, g)
+    const arc = h("circle", { cx: o.cx, cy: o.cy, r: o.r, class: "ring-arc", fill: "none", "stroke-width": w, "stroke-linecap": "round", style: { stroke: o.color }, transform: `rotate(-90 ${o.cx} ${o.cy})` }, g)
+    const dur = o.dur ?? 1.2
+    hideUntil(v, arc, o.at)
+    v.tl.fromTo(arc, { drawSVG: "0%" }, { drawSVG: `${(o.value ?? 1) * 100}%`, duration: dur, ease: o.ease || "inout", immediateRender: false }, o.at)
+    return { g, arc, end: o.at + dur }
+  }
+
+  /**
+   * A donut chart whose parts draw on one after another.
+   * o: { cx, cy, r, w, parts: [{ value, color }], at, dur, gap } → { g, arcs, end }
+   */
+  function donut(v, parent, o) {
+    const g = h("g", { class: "donut" }, parent)
+    const total = o.parts.reduce((s, p) => s + p.value, 0)
+    const w = o.w ?? 28 * v.k
+    const C = 2 * Math.PI * o.r
+    const gap = (o.gap ?? 6 * v.k) / C
+    const dur = o.dur ?? 1.2
+    let acc = 0
+    const arcs = o.parts.map((p) => {
+      const share = p.value / total
+      const a = h("circle", { cx: o.cx, cy: o.cy, r: o.r, fill: "none", style: { stroke: p.color }, "stroke-width": w, "stroke-linecap": "butt", transform: `rotate(-90 ${o.cx} ${o.cy})` }, g)
+      const s = acc
+      const e = acc + Math.max(0.001, share - gap)
+      acc += share
+      const t0 = o.at + dur * s
+      hideUntil(v, a, t0)
+      v.tl.fromTo(a, { drawSVG: `${s * 100}% ${s * 100}%` }, { drawSVG: `${s * 100}% ${e * 100}%`, duration: dur * share + 0.15, ease: "power2.out", immediateRender: false }, t0)
+      return a
+    })
+    return { g, arcs, end: o.at + dur + 0.15 }
+  }
+
   /** Bars that grow from the baseline: o: { x, y, w, h, values, at, max, gap, cls } → rects. */
   function bars(v, parent, o) {
     const n = o.values.length
@@ -622,6 +964,7 @@
     show(v, B.S, at)
     B.P.move(at, dur, { [axis]: 0 }, { from: { [axis]: -s * dist }, ease: "dash" })
     hide(v, A.S, at + dur)
+    v.quiet(at, at + dur + 0.05)
     v.sfx("whoosh", at + dur * 0.45, { dur: 0.6 })
     return at + dur
   }
@@ -653,6 +996,7 @@
       v.tl.fromTo(t, { yPercent: 60, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: 0.3, immediateRender: false }, at + dur * 0.6 + each * (n - 1))
     }
     v.sfx("whoosh", at + dur * 0.5, { dur: 0.5, gain: -2 })
+    v.quiet(at, mid + hold + dur + each * (n - 1))
     return { mid, end: mid + hold + dur + each * (n - 1), els }
   }
 
@@ -667,6 +1011,8 @@
     v.tl.to(A.S, { autoAlpha: 0, duration: 0.12, ease: "none" }, at + dur - 0.12)
     show(v, B.S, at + dur - 0.06)
     B.P.move(at + dur - 0.06, o.land ?? 0.8, { zoom: 1 }, { from: { zoom: o.fromZoom ?? 1.35 }, ease: "out" })
+    if (o.blur !== 0) focus(v, B.S, at + dur - 0.06, { from: o.blur ?? 14, blur: 0, dur: 0.45, ease: "power2.out" })
+    v.quiet(at, at + dur + 0.3)
     v.sfx("whoosh", at + dur * 0.6, { dur: 0.5, pitch: 1.25 })
     return at + dur
   }
@@ -687,7 +1033,129 @@
   /** Match cut helper: an element flies from one stage box to another. */
   function fly(v, el, at, from, to, o = {}) {
     v.tl.fromTo(el, { x: from.x, y: from.y, scale: from.s ?? 1 }, { x: to.x, y: to.y, scale: to.s ?? 1, duration: o.dur ?? 0.7, ease: o.ease || "inout", immediateRender: false }, at)
+    v.quiet(at, at + (o.dur ?? 0.7) + 0.05)
     v.sfx("swish", at + 0.1, { gain: -6 })
+  }
+
+  /**
+   * 5 · Whip pan: the old shot flies off to one side, streaked by motion blur,
+   * and the new one lands from the other side. o: { dir: "left" | "right" | "up" | "down", dur }
+   */
+  function whip(v, A, B, at, o = {}) {
+    const dur = o.dur ?? 0.5
+    const dir = o.dir || "left"
+    const vert = dir === "up" || dir === "down"
+    const s = dir === "left" || dir === "up" ? -1 : 1
+    const prop = vert ? "yPercent" : "xPercent"
+    const skew = vert ? "skewY" : "skewX"
+    v.tl.to(A.S, { [prop]: s * 115, [skew]: -s * (o.skew ?? 8), duration: dur * 0.55, ease: "power3.in" }, at)
+    hide(v, A.S, at + dur * 0.55)
+    show(v, B.S, at + dur * 0.42)
+    v.tl.fromTo(B.S, { [prop]: -s * 115, [skew]: -s * (o.skew ?? 8) }, { [prop]: 0, [skew]: 0, duration: dur * 0.6, ease: "power3.out", immediateRender: false }, at + dur * 0.42)
+    v.quiet(at, at + dur + 0.05)
+    v.sfx("whoosh", at + dur * 0.4, { dur: 0.5, pitch: 1.1 })
+    return at + dur
+  }
+
+  /**
+   * 6 · Wipe: shaped colour layers cover the frame one after another, then
+   * uncover it. Swap shots at the returned .mid (the frame is covered then).
+   * o: { kind: "wave" | "circle" | "diagonal", colors: [..], dir: "right" | "left" | "up" | "down",
+   *      x, y (circle centre), dur, lag, hold }
+   */
+  function wipe(v, at, o = {}) {
+    const { W, H } = v
+    const kind = o.kind || "wave"
+    const dir = o.dir || "right"
+    const colors = o.colors || ["var(--accent)", "var(--ink)"]
+    const half = (o.dur ?? 0.9) / 2
+    const lag = o.lag ?? 0.07
+    const n = colors.length
+    const mid = at + half + lag * (n - 1)
+    const hold = o.hold ?? 0.04
+    const svg = h("svg", { class: "stage-svg wipe", viewBox: `0 0 ${W} ${H}` }, v.over)
+    const seed = v.rand() * 6
+    colors.forEach((c, i) => {
+      const el = h("path", { d: "", style: { fill: c } }, svg)
+      const st = { p: 0 }
+      v.tl.to(st, { p: 1, duration: half, ease: o.easeIn || "power2.in" }, at + i * lag)
+      v.tl.to(st, { p: 2, duration: half, ease: o.easeOut || "power2.out" }, mid + hold + (n - 1 - i) * lag)
+      let last = -1
+      v.onFrame(() => {
+        if (st.p === last) return
+        last = st.p
+        el.setAttribute("d", wipeShape(kind, dir, st.p, W, H, seed + i * 2.1, o))
+      })
+    })
+    const end = mid + hold + half + lag * (n - 1)
+    v.quiet(at, end)
+    v.sfx("whoosh", at + half * 0.6, { dur: 0.5, gain: -3 })
+    return { mid, end }
+  }
+  // p 0 → 1 covers the frame, 1 → 2 uncovers it (the edge keeps going the same way)
+  function wipeShape(kind, dir, p, W, H, seed, o) {
+    if (p <= 1e-4 || p >= 2 - 1e-4) return ""
+    const covering = p <= 1
+    const q = covering ? p : p - 1
+    if (kind === "circle") {
+      const cx = o.x ?? W / 2
+      const cy = o.y ?? H / 2
+      const far = Math.hypot(Math.max(cx, W - cx), Math.max(cy, H - cy)) * 1.08
+      const R = Math.max(0.1, q * far)
+      const c = `M${cx - R},${cy}a${R},${R} 0 1 0 ${R * 2},0a${R},${R} 0 1 0 ${-R * 2},0Z`
+      return covering ? c : `M-10,-10H${W + 10}V${H + 10}H-10Z ${c}`
+    }
+    const horiz = dir === "right" || dir === "left"
+    const L = horiz ? W : H // the length the edge travels
+    const B = horiz ? H : W // the length of the edge
+    const amp = (o.amp ?? 0.09) * L
+    const slant = kind === "diagonal" ? (o.slant ?? 0.28) * L : 0
+    // position of the edge along its travel, for a point b along it
+    const edge = (b) => {
+      const u = b / B
+      if (kind === "diagonal") return -slant + q * (L + slant * 2) + (u - 0.5) * slant
+      return -amp * 1.6 + q * (L + amp * 3.4) + Math.sin(u * Math.PI) * amp + Math.sin(u * 7.1 + seed + q * 3.2) * amp * 0.22
+    }
+    const N = kind === "diagonal" ? 1 : 24
+    const pts = []
+    for (let i = 0; i <= N; i++) {
+      const b = -20 + ((B + 40) * i) / N
+      pts.push([edge(b), b])
+    }
+    const map = ([l, b]) => (dir === "right" ? [l, b] : dir === "left" ? [W - l, b] : dir === "down" ? [b, l] : [b, H - l])
+    const m = pts.map(map)
+    const line = kind === "diagonal" ? `M${m[0][0]},${m[0][1]}L${m[1][0]},${m[1][1]}` : smooth(m)
+    // close on the covered side: behind the edge while covering, ahead of it while uncovering
+    const far = covering ? -60 : L + 60
+    const [ax, ay] = map([far, B + 20])
+    const [bx, by] = map([far, -20])
+    return `${line}L${ax},${ay}L${bx},${by}Z`
+  }
+
+  /** Mask reveal on one element: Kit.clipIn(v, el, at, { from: "left" | "right" | "top" | "bottom" | "center" | "circle", dur }) */
+  function clipShapes(o) {
+    const from = o.from || "left"
+    if (from === "circle") return [`circle(0% at ${o.x ?? "50%"} ${o.y ?? "50%"})`, `circle(${o.size ?? "150%"} at ${o.x ?? "50%"} ${o.y ?? "50%"})`]
+    const z = "inset(0% 0% 0% 0% round var(--clip-r, 0px))"
+    const s = { left: "inset(0% 100% 0% 0% round var(--clip-r, 0px))", right: "inset(0% 0% 0% 100% round var(--clip-r, 0px))", top: "inset(0% 0% 100% 0% round var(--clip-r, 0px))", bottom: "inset(100% 0% 0% 0% round var(--clip-r, 0px))", center: "inset(50% 50% 50% 50% round var(--clip-r, 0px))" }[from]
+    return [s, z]
+  }
+  function clipIn(v, el, at, o = {}) {
+    const [a, b] = clipShapes(o)
+    const dur = o.dur ?? 0.8
+    v.tl.set(el, { autoAlpha: 1 }, at)
+    v.tl.fromTo(el, { clipPath: a }, { clipPath: b, duration: dur, ease: o.ease || "glide", immediateRender: at <= 0 }, at)
+    v.tl.set(el, { clipPath: "none" }, at + dur)
+    if (at > 0) v.tl.set(el, { autoAlpha: 0 }, 0)
+    return at + dur
+  }
+  /** The reverse of clipIn: the element is masked away. */
+  function clipOut(v, el, at, o = {}) {
+    const [a, b] = clipShapes(o)
+    const dur = o.dur ?? 0.7
+    v.tl.fromTo(el, { clipPath: b }, { clipPath: a, duration: dur, ease: o.ease || "glide", immediateRender: false }, at)
+    v.tl.set(el, { autoAlpha: 0, clipPath: "none" }, at + dur)
+    return at + dur
   }
 
   // ──────────────────────────────────────────────── voice + captions ──
@@ -818,6 +1286,9 @@
         height: cfg.height,
         audio: cfg.audio,
         cues: v.cues.slice().sort((a, b) => a.at - b.at),
+        busy: v.busy.slice(),
+        safe: v.safe,
+        ui: v.ui,
         seek(t) {
           v.tl.seek(t, false)
           return runFrameFns(v, t)
@@ -836,11 +1307,11 @@
 
   window.Kit = {
     start, seeded, h, FORMATS,
-    show, hide, planes, shot,
-    title, reveal, unreveal, sayWords, mark, count, typeOn, measure, fit,
-    card, enter, kpis, table, lineChart, bars, cursor, float, image, box, smooth, hideUntil,
-    push, panels, zoomThrough, cut, fly,
-    vo, captions, finish,
+    show, hide, planes, shot, tilt, focus,
+    title, reveal, unreveal, sayWords, mark, count, roll, typeOn, measure, fit, tracking, weight,
+    card, phone, enter, kpis, table, lineChart, bars, ring, donut, cursor, float, image, box, smooth, hideUntil,
+    push, panels, zoomThrough, cut, fly, whip, wipe, clipIn, clipOut,
+    vo, captions, finish, bokeh, leak, sheen, scenery,
     ICONS, icon,
     /** A look registers itself: Kit.look("clean", { init(v) { … return api } }). */
     looks: {},

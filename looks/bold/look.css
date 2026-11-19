@@ -1,106 +1,260 @@
 /*
- * Bold: a loud duotone look for reels (9:16 first, works in 16:9).
- * Near-black #0F0F12, acid lime #D6FF3D, off-white #F7F7F2.
- * Anton uppercase, huge and fitted to the safe width; Archivo for labels and captions.
+ * Bold: a dark night look for reels (9:16 first, works in 16:9).
+ * A near-black ground #0A0B10 lit by slow pools of deep colour, ONE volt
+ * accent #C8FF2E and off-white #F4F5F0. Anton for huge words; Archivo light
+ * and wide for the quiet second voice, labels and captions. Dark glass cards.
  */
 #stage[data-look="bold"] {
-  --black: #0f0f12;
-  --lime: #d6ff3d;
-  --white: #f7f7f2;
-  --ground: #0f0f12;
-  --ink: #f7f7f2;
-  --muted: rgba(247, 247, 242, 0.6);
-  --accent: #d6ff3d;
-  --on-accent: #0f0f12;
-  --line: rgba(247, 247, 242, 0.16);
-  --card: #0f0f12;
+  --ground: #0a0b10;
+  --ink: #f4f5f0;
+  --muted: rgba(244, 245, 240, 0.62);
+  --faint: rgba(244, 245, 240, 0.4);
+  --accent: #c8ff2e;
+  --on-accent: #0a0b10;
+  --line: rgba(244, 245, 240, 0.12);
+  --card: #151821;
+  --glass: rgba(28, 32, 48, 0.72);
+  --glow-1: rgba(110, 80, 255, 0.34);
+  --glow-2: rgba(0, 170, 190, 0.26);
+  --glow-3: rgba(200, 255, 46, 0.12);
+  --glow-4: rgba(255, 70, 140, 0.18);
+  --dots: rgba(244, 245, 240, 0.06);
   font-family: "Archivo", sans-serif;
   color: var(--ink);
 }
 
-/* one solid ground per shot (in its own plane, so pushes carry it) */
-#stage[data-look="bold"] .b-ground {
-  position: absolute;
-  inset: -14%;
-}
-
+/* ── type ── */
 #stage[data-look="bold"] .title,
-#stage[data-look="bold"] .b-big {
+#stage[data-look="bold"] .b-line {
   font-family: "Anton", sans-serif;
   font-weight: 400;
   text-transform: uppercase;
-  line-height: 0.94;
-  letter-spacing: 0.004em;
+  line-height: 0.98;
+  letter-spacing: 0.005em;
+  color: var(--ink);
 }
-#stage[data-look="bold"] .title .em {
+#stage[data-look="bold"] .title .em,
+#stage[data-look="bold"] .b-line.accent {
   color: var(--accent);
 }
-
-/* text on a solid block */
-#stage[data-look="bold"] .b-block {
-  position: absolute;
-  overflow: hidden;
-  white-space: nowrap;
-}
-#stage[data-look="bold"] .b-block-t {
-  display: block;
-  font-family: "Anton", sans-serif;
-  font-weight: 400;
-  text-transform: uppercase;
-  line-height: 1.08;
-  letter-spacing: 0.004em;
-  padding: 0 0.12em;
-  white-space: nowrap;
-}
-
-/* small label on a block */
-#stage[data-look="bold"] .b-label {
-  position: absolute;
+#stage[data-look="bold"] .title .lite,
+#stage[data-look="bold"] .b-line.lite {
   font-family: "Archivo", sans-serif;
-  font-weight: 800;
-  font-stretch: 112%;
-  font-size: 34px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  line-height: 1;
-  padding: 14px 20px 13px;
+  font-weight: 300;
+  font-stretch: 125%;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+#stage[data-look="bold"] .b-line {
+  position: absolute;
   white-space: nowrap;
-  overflow: hidden;
+}
+#stage[data-look="bold"] .b-kicker {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-family: "Archivo", sans-serif;
+  font-weight: 700;
+  font-stretch: 115%;
+  font-size: 30px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+#stage[data-look="bold"] .b-kicker i {
+  display: block;
+  width: 56px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--accent);
+  transform-origin: 0 50%;
+}
+#stage[data-look="bold"] .mark-box {
+  border-radius: 0.04em;
 }
 
-/* the big count-up */
+/* the big number */
 #stage[data-look="bold"] .b-count {
   position: absolute;
   font-family: "Anton", sans-serif;
   line-height: 1;
-  text-align: center;
   white-space: nowrap;
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 
-/* drifting geometric blocks in the back plane */
-#stage[data-look="bold"] .b-shape {
+/* ── dark glass cards ── */
+#stage[data-look="bold"] .b-glass {
   position: absolute;
-  transform-origin: 50% 50%;
+  border-radius: 34px;
+  background: linear-gradient(160deg, rgba(48, 54, 78, 0.78), rgba(22, 25, 37, 0.82));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 0 0 1.5px rgba(255, 255, 255, 0.07), 0 40px 80px -30px rgba(0, 0, 0, 0.8);
+}
+#stage[data-look="bold"] .b-notif {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 22px;
+  row-gap: 6px;
+  align-items: center;
+  padding: 26px 30px 26px 26px;
+  width: 640px;
+}
+#stage[data-look="bold"] .b-notif .b-ico {
+  grid-row: span 2;
+}
+#stage[data-look="bold"] .b-notif b {
+  font-weight: 700;
+  font-size: 30px;
+  white-space: nowrap;
+  padding-right: 90px;
+}
+#stage[data-look="bold"] .b-notif span {
+  font-size: 25px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+#stage[data-look="bold"] .b-notif em {
+  position: absolute;
+  right: 30px;
+  top: 28px;
+  font-style: normal;
+  font-size: 22px;
+  color: var(--faint);
+}
+#stage[data-look="bold"] .b-ico {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-/* captions: a black block, the spoken word in lime */
-#stage[data-look="bold"] .b-caps .cap-row {
-  background: var(--black);
-  padding: 0.2em 0.42em 0.22em;
+/* ── the app inside a phone ── */
+#stage[data-look="bold"] .phone-screen {
+  background: radial-gradient(120% 70% at 50% 0%, #1c2030 0%, #0e1018 60%);
+  color: var(--ink);
+}
+#stage[data-look="bold"] .b-scr {
+  position: absolute;
+  font-family: "Archivo", sans-serif;
+  white-space: nowrap;
+}
+#stage[data-look="bold"] .b-scr-h {
+  font-weight: 700;
+  font-stretch: 110%;
+  letter-spacing: -0.01em;
+}
+#stage[data-look="bold"] .b-scr-m {
+  color: var(--muted);
+}
+#stage[data-look="bold"] .b-timer {
+  font-family: "Anton", sans-serif;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+#stage[data-look="bold"] .b-btn {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
   font-family: "Archivo", sans-serif;
   font-weight: 800;
-  font-stretch: 100%;
-  font-size: 54px;
+  font-stretch: 110%;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  box-shadow: 0 0 0 0 rgba(200, 255, 46, 0.5), 0 18px 40px -16px rgba(200, 255, 46, 0.6);
+}
+#stage[data-look="bold"] .b-held {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 24px 0 14px;
+  border-radius: 999px;
+  background: rgba(244, 245, 240, 0.08);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  font-weight: 650;
+  white-space: nowrap;
+}
+#stage[data-look="bold"] .b-held i {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-style: normal;
+  font-weight: 800;
+}
+#stage[data-look="bold"] .ring-track {
+  stroke: rgba(244, 245, 240, 0.1);
+}
+#stage[data-look="bold"] .ring-arc {
+  stroke: var(--accent);
+}
+#stage[data-look="bold"] .bar {
+  fill: rgba(244, 245, 240, 0.16);
+}
+#stage[data-look="bold"] .bar-hi {
+  fill: var(--accent);
+}
+#stage[data-look="bold"] .b-axis {
+  position: absolute;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ── logo and end card ── */
+#stage[data-look="bold"] .b-logo {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+#stage[data-look="bold"] .b-logo-name {
+  font-family: "Archivo", sans-serif;
+  font-weight: 800;
+  font-stretch: 120%;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+#stage[data-look="bold"] .b-tag {
+  position: absolute;
+  font-family: "Archivo", sans-serif;
+  font-weight: 300;
+  font-stretch: 125%;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ── captions: off-white words on a dark glass pill, the spoken word in the accent ── */
+#stage[data-look="bold"] .b-caps .cap-row {
+  background: rgba(10, 11, 16, 0.78);
+  padding: 0.22em 0.5em 0.26em;
+  border-radius: 0.5em;
+  font-family: "Archivo", sans-serif;
+  font-weight: 800;
+  font-stretch: 105%;
+  font-size: 52px;
   line-height: 1.1;
-  color: var(--white);
+  color: var(--ink);
   max-width: 90%;
 }
-#stage[data-look="bold"] .b-caps .cap-w {
-  margin: 0 0.12em;
-}
 #stage[data-look="bold"] .b-caps .cap-w.on:not(:has(+ .cap-w.on)) {
-  color: var(--lime);
+  color: var(--accent);
 }
 
 #stage[data-look="bold"] .panel-text {
@@ -109,19 +263,19 @@
   text-transform: uppercase;
 }
 #stage[data-look="bold"] .cursor-arrow {
-  fill: var(--white);
-  stroke: var(--black);
+  fill: var(--ink);
+  stroke: var(--ground);
 }
 #stage[data-look="bold"] .cursor-ripple {
-  stroke: var(--lime);
+  stroke: var(--accent);
 }
 #stage[data-look="bold"] .chart-line {
-  stroke: var(--lime);
+  stroke: var(--accent);
   stroke-width: 6;
 }
 #stage[data-look="bold"] .chart-grid {
-  stroke: rgba(247, 247, 242, 0.14);
+  stroke: rgba(244, 245, 240, 0.12);
 }
 #stage[data-look="bold"] .chart-dot {
-  fill: var(--lime);
+  fill: var(--accent);
 }
