@@ -7,9 +7,11 @@
  *      - with faster-whisper installed (optional, Python): exact word times
  *      - without it: the script's words (script.txt) spread over the speech
  *        that ffmpeg hears between the pauses
- *   3. prints the transcript, the length and a suggested video duration
+ *   3. compares what it heard with the script (script.txt) and lists the words to
+ *      check by ear (names and short words are where an AI voice slips)
+ *   4. prints the transcript, the length and a suggested video duration
  *
- *   node scripts/voice.mjs <project> <audio file> [--script file.txt]
+ *   node scripts/voice.mjs <project> <audio file> [--script file.txt] [--model small]
  */
 import fs from "node:fs"
 import os from "node:os"
@@ -24,9 +26,9 @@ const fail = (msg) => {
   process.exit(1)
 }
 const argv = process.argv.slice(2)
-const pos = argv.filter((a, i) => !a.startsWith("--") && argv[i - 1] !== "--script")
+const pos = argv.filter((a, i) => !a.startsWith("--") && !["--script", "--model"].includes(argv[i - 1]))
 const [target, input] = pos
-if (!target || !input) fail("Use: node scripts/voice.mjs <project> <audio file> [--script script.txt]")
+if (!target || !input) fail("Use: node scripts/voice.mjs <project> <audio file> [--script script.txt] [--model small]")
 const PROJECT = [path.resolve(target), path.join(os.homedir(), "easy-videos", target)].find((p) => fs.existsSync(path.join(p, "config.js")))
 if (!PROJECT) fail(`"${target}" is not a video project: there is no config.js in it.`)
 if (!fs.existsSync(input)) fail(`I can't find the audio file "${input}".`)
@@ -71,29 +73,38 @@ if (!speech.length) speech.push([0, duration])
 // 2b. word times: faster-whisper if it is there, else spread the script's words over the speech
 let words = null
 let how = ""
+const arg = (n) => (argv.includes(`--${n}`) ? argv[argv.indexOf(`--${n}`) + 1] : null)
+const sFile = [arg("script"), path.join(PROJECT, "script.txt"), path.join(VO, "script.txt")].find((f) => f && fs.existsSync(f))
+const scriptText = sFile ? fs.readFileSync(sFile, "utf8") : ""
+// The audio is decoded here (16 kHz mono floats, by ffmpeg) and handed to Whisper as numbers, so
+// Whisper's own audio decoder is never needed. No voice-activity filter: it can trim the start
+// and end of words, and these times decide when words appear on screen.
 const PY = `
 import json, sys
+import numpy as np
 from faster_whisper import WhisperModel
-m = WhisperModel("base", device="cpu", compute_type="int8")
-segs, _ = m.transcribe(sys.argv[1], word_timestamps=True, vad_filter=True)
+audio = np.fromfile(sys.argv[1], dtype=np.float32)
+m = WhisperModel(sys.argv[2], device="cpu", compute_type="int8")
+segs, _ = m.transcribe(audio, word_timestamps=True, vad_filter=False, beam_size=5)
 print(json.dumps([{"w": w.word.strip(), "s": round(w.start, 3), "e": round(w.end, 3)} for s in segs for w in s.words if w.word.strip()]))
 `
-const py = ["python3", "python"].find((p) => spawnSync(p, ["-c", "import faster_whisper"], { stdio: "ignore" }).status === 0)
+const py = ["python3", "python"].find((p) => spawnSync(p, ["-c", "import faster_whisper, numpy"], { stdio: "ignore" }).status === 0)
 if (py) {
   console.log("Listening to the voice with Whisper (about as long as the voice itself)…")
-  const w = spawnSync(py, ["-c", PY, wav], { encoding: "utf8", maxBuffer: 1 << 26 })
-  try {
-    words = JSON.parse(w.stdout.trim().split("\n").pop())
-    how = "exact, from Whisper"
-  } catch {
-    console.log("  note: Whisper could not run, so the word times are estimated from the pauses instead.")
+  const raw = path.join(os.tmpdir(), `easy-video-voice-${process.pid}.f32`)
+  const d = ff(["-i", wav, "-ac", "1", "-ar", "16000", "-f", "f32le", raw])
+  if (d.status === 0) {
+    const w = spawnSync(py, ["-c", PY, raw, arg("model") || "base"], { encoding: "utf8", maxBuffer: 1 << 26 })
+    try {
+      words = JSON.parse(w.stdout.trim().split("\n").pop())
+      how = "exact, from Whisper"
+    } catch {}
   }
+  fs.rmSync(raw, { force: true })
+  if (!words) console.log("  note: Whisper could not run, so the word times are estimated from the pauses instead.")
 }
 if (!words) {
-  const sArg = argv.includes("--script") ? argv[argv.indexOf("--script") + 1] : null
-  const sFile = [sArg, path.join(PROJECT, "script.txt"), path.join(VO, "script.txt")].find((f) => f && fs.existsSync(f))
-  const text = sFile ? fs.readFileSync(sFile, "utf8") : ""
-  const list = text.split(/\s+/).filter(Boolean)
+  const list = scriptText.split(/\s+/).filter(Boolean)
   if (!list.length) console.log("  note: there is no script.txt in the project, so there are no word times (captions need them). Put the script in script.txt and run this again.")
   // each word gets speaking time in proportion to its length; the time is laid over the speech segments
   const weight = list.map((w) => w.replace(/[^\p{L}\p{N}]/gu, "").length + 2)
@@ -124,4 +135,18 @@ const suggest = Math.ceil(duration + 1.5)
 console.log(`Voice ready: ${wav} (${duration.toFixed(1)} s long).`)
 console.log(`Word times: ${words.length} words, ${how}.`)
 if (words.length) console.log(`Transcript: ${words.map((w) => w.w).join(" ")}`)
+// what the voice said against what the script says (only when Whisper listened)
+if (how.startsWith("exact") && scriptText.trim()) {
+  const norm = (w) => w.toLowerCase().replace(/[^\p{L}\p{N}%']/gu, "")
+  const want = scriptText.split(/\s+/).map(norm).filter(Boolean)
+  const heard = words.map((w) => norm(w.w)).filter(Boolean)
+  const missing = [...new Set(want.filter((w) => !heard.includes(w)))]
+  const extra = [...new Set(heard.filter((w) => !want.includes(w)))]
+  if (!missing.length && !extra.length) console.log("Script check: the voice says every word of the script.")
+  else {
+    console.log("Script check: listen to these words (the voice may have said them differently):")
+    if (missing.length) console.log(`  in the script, not heard as written: ${missing.join(" ")}`)
+    if (extra.length) console.log(`  heard, not in the script: ${extra.join(" ")}`)
+  }
+}
 console.log(`Suggested video length: ${suggest} s (duration: ${suggest} in config.js).`)

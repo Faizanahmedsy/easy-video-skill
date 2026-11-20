@@ -1,6 +1,6 @@
 ---
 name: easy-video
-description: Make a professional product video (wide 16:9) or a reel (tall 9:16) for someone with no video skills, through a few simple questions. Use when the user asks to make a video, product video, promo, demo or launch video, explainer, ad, reel, short, TikTok or Instagram video, or pastes a link to easy-video-skill. Writes a short script, adds an optional free AI voice, renders a quick draft to check, then the final MP4 on their computer.
+description: Make a professional product video (wide 16:9) or a reel (tall 9:16) for someone with no video skills, through a few simple questions. Use when the user asks to make a video, product video, promo, demo or launch video, explainer, ad, reel, short, TikTok or Instagram video, or pastes a link to easy-video-skill, or asks for a video for a brand whose pack (a folder with PACK.md) sits next to this skill. Writes a short script, adds an optional free AI voice, renders a quick draft to check, then the final MP4 on their computer.
 ---
 
 # Easy Video
@@ -79,7 +79,9 @@ bash scripts/new.sh <name> --type product   # or --type reel
 ```
 
 `<name>` is a short folder name (lowercase, dashes): `tally-launch`. Copy
-their logo and screenshots into `~/easy-videos/<name>/assets/`.
+their logo and screenshots into `~/easy-videos/<name>/assets/`. If there will
+be a voice, save the approved spoken words (just the words, no times or
+notes) as `~/easy-videos/<name>/script.txt`.
 
 ## Step 3 · The voice (only if they want one)
 
@@ -109,8 +111,9 @@ When you have the file:
 bash scripts/voice.sh <name> <path-to-audio>
 ```
 
-It prints what it heard and a suggested length. Check the words match the
-script (a small slip is fine; a missing line means a new take). Set the
+It prints what it heard, a script check and a suggested length. If the
+script check lists words, listen to those spots yourself or ask them to (a
+small slip is fine; a missing or wrong line means a new take). Set the
 video's `duration` in `config.js` to the suggested length.
 
 ## Step 4 · Build the video
@@ -130,6 +133,14 @@ Before writing scenes, read `looks/clean/LOOK.md` (product video) or
   - move between shots with a motivated transition (whip, zoom through, a
     match cut with `L.flyTo`, a wipe), not a plain fade;
   - one main movement at a time, on the kit's eases.
+- **Motion rules** (details in `docs/kit.md`, "Motion rules"):
+  - one camera track per shot: never a drift under a push-in; for a move
+    through several poses use one `P.path`;
+  - nothing faster than about 2000 px/s outside a transition;
+  - never two copies of the same layout on screen, and no crossfade between
+    near-identical layouts: move or change one element;
+  - hide every element until its own entrance; one `set` per property at 0 s;
+  - a caption's plate is styled on the caption row, so it fades with its words.
 - **Render rules:** a frame must depend only on time. Put every motion on
   `v.tl`, use `v.rand()` and `v.onFrame()`. Never use `Math.random`,
   `setTimeout`, `Date.now` or CSS animations in scenes.
@@ -152,15 +163,19 @@ Look for:
 - empty or black frames, spelling, a squashed logo.
 
 Fix, render again, look again. Do at least 3 rounds, and keep going until a
-round finds nothing. Then run the layout check, which finds overlaps,
-cut-off text, text under a platform's buttons and empty frames over the
-whole video:
+round finds nothing. Then run the checks over the whole video (about a
+minute or two):
 
 ```bash
 node engine/render.mjs ~/easy-videos/<name> --check
 ```
 
-The draft runs this check too and stops if it finds a problem.
+The layout check finds overlaps, cut-off text, text under a platform's
+buttons and empty frames; the motion check finds camera jumps, moves too fast
+for motion blur, things that pop in twice and ghost copies. Each line ends
+with a `fix:` hint; fix every problem. Read the notes too (hard to read,
+small text, nothing moving for 3 s) and fix the ones that matter. The draft
+runs these checks too and stops if they find a problem.
 
 ## Step 6 · The draft
 
@@ -205,10 +220,28 @@ Say it in one plain sentence, fix it, and carry on. Common cases:
 - A still looks wrong: fix the scene, render that moment again with `--at`.
 - The final refuses to start: something changed since the approved draft.
   Make a new draft and get a "looks good".
-- The draft stops at the layout check: fix what it lists (it names the text
-  and the time). Use `--force` only for an overlap you mean to have.
+- The draft stops at the checks: fix what they list (each line names the
+  time and the text, and ends with a `fix:` hint). Use `--force` only for an
+  overlap you mean to have.
 - The computer struggles during a render: add `--workers 1` (fewer pages
   render side by side; slower but lighter).
 
 Script advice stays general: short, clear, one idea per line. Don't add
 formulas or tricks for getting views.
+
+## Brand packs
+
+A brand pack is a folder with a `PACK.md`, placed next to this skill (in
+the same skills folder or zip) or in the person's working folder. List them
+with `bash scripts/packs.sh`.
+
+- Use a pack only when the request names its brand or pack, or the working
+  folder's `CLAUDE.md` says to use it. If two could fit, ask which one.
+- Read its `PACK.md` first and follow it. For what it covers, it wins over
+  this file: its own look, engine or template, voice settings, rules (words,
+  claims, colours), topic bank, and defaults for the five questions.
+  Everything else follows this file.
+- "How to talk to them" above still applies, and so does draft first: the
+  final only renders a draft they approved.
+- A pack's look for this engine goes in the project's `look/` folder
+  (`docs/kit.md`, "A project's own look").

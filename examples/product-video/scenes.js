@@ -168,7 +168,8 @@ Kit.start(window.VIDEO, (v) => {
     tagLabel: "This week",
     labels: ["Week 1", "Week 4", "Week 8", "Week 12"],
   })
-  D.P.move(13.75, 4.5, { zoom: 1, y: -16 }, { from: { zoom: 1.03, y: 10 }, ease: "power2.out" })
+  // the camera: after the dive lands (14.99 s), one slow push in while the numbers fill in
+  D.P.path([{ t: 14.99 }, { t: 18.3, zoom: 1.03, y: -16 }])
 
   // ── 5 · the end card (wave wipe, 18.2 – 21.5) ──────────────────────────
   const w = L.wipe(17.7)

@@ -109,6 +109,30 @@
     // A tween placed at a negative time makes GSAP shift the whole timeline:
     // clamp such positions to 0 (and say so once).
     let warned = false
+    // Two different `set`s on the same property of the same element at 0 s: on the
+    // first frame either one can win (a scene that never shows, a card that is
+    // visible before its entrance). Recorded here; the check lists them.
+    const warnings = []
+    const atZero = new WeakMap()
+    const SKIP_KEYS = /^(immediateRender|overwrite|ease|duration|delay|stagger|onComplete|onUpdate|onStart|callbackScope)$/
+    const nameOf = (el) => {
+      const txt = (el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 30)
+      const cls = typeof el.className === "string" ? el.className.trim().split(/\s+/)[0] : ""
+      return txt ? `"${txt}"` : cls ? `a .${cls} element` : `a <${(el.tagName || "?").toLowerCase()}> element`
+    }
+    const watchZero = (targets, vars) => {
+      for (const el of G.utils.toArray(targets)) {
+        if (!(el instanceof Element)) continue
+        const seen = atZero.get(el) || {}
+        for (const [key, val] of Object.entries(vars || {})) {
+          if (SKIP_KEYS.test(key) || typeof val === "function" || (val && typeof val === "object")) continue
+          const s = String(val)
+          if (key in seen && seen[key] !== s) warnings.push(`${nameOf(el)} is set twice at 0 s ("${key}": ${seen[key]} and ${s})`)
+          seen[key] = s
+        }
+        atZero.set(el, seen)
+      }
+    }
     for (const [m, i] of [["to", 2], ["from", 2], ["fromTo", 3], ["set", 2], ["add", 1], ["call", 2]]) {
       const orig = tl[m].bind(tl)
       tl[m] = (...a) => {
@@ -117,6 +141,7 @@
           warned = true
           a[i] = 0
         }
+        if (m === "set" && a[i] === 0) watchZero(a[0], a[1])
         return orig(...a)
       }
     }
@@ -143,6 +168,7 @@
       pending: [],
       cues: [],
       busy: [],
+      warnings,
       looks: {},
     }
     /** Mark a time span the layout check should skip (a transition, an intended overlap). */
@@ -359,6 +385,15 @@
    * depth, so near things move more than far ones (parallax).
    *   P.move(at, dur, { x: -40, y: 0, zoom: 1.05, rotate: 0 }, { from: { zoom: 1 }, ease })
    *   P.aim(x, y, zoom)  a move target that zooms toward the stage point (x, y)
+   *   P.path([{ t: 0 }, { t: 2, zoom: 1.06 }, { t: 5, ...P.aim(400, 500, 1.1) }])
+   *                      one smooth camera through key poses, with no stop between them
+   *
+   * A shot has ONE camera track. Every move and path goes on it in time order,
+   * and each one ends where the next begins, so two moves can never fight over
+   * the camera (that snaps it back the moment one of them ends, and motion blur
+   * shows the whole picture twice). A move without `from` starts exactly where
+   * the camera is. The camera is worked out from the time alone on every
+   * frame, so it is the same in any render order.
    */
   function planes(v, scene, depths = { bg: 0.35, mid: 0.75, fg: 1.3 }) {
     const P = { list: [] }
@@ -368,15 +403,93 @@
       P[name] = pl
       P.list.push(pl)
     }
-    const state = (o, d) => ({ x: (o.x ?? 0) * d, y: (o.y ?? 0) * d, scale: 1 + ((o.zoom ?? 1) - 1) * d, rotation: (o.rotate ?? 0) * d })
+    const KEYS = ["x", "y", "zoom", "rotate"]
+    const NEUTRAL = { x: 0, y: 0, zoom: 1, rotate: 0 }
+    const full = (o) => Object.assign({}, NEUTRAL, o)
+    const state = (o, d) => ({ x: o.x * d, y: o.y * d, scale: 1 + (o.zoom - 1) * d, rotation: o.rotate * d })
     P.aim = (fx, fy, zoom, extra = {}) => Object.assign({ x: (v.W / 2 - fx) * (zoom - 1), y: (v.H / 2 - fy) * (zoom - 1), zoom }, extra)
+
+    const segs = []
+    let ready = false
     P.move = (at, dur, to = {}, o = {}) => {
-      for (const pl of P.list) {
-        if (o.from) v.tl.set(pl.el, state(Object.assign({ x: 0, y: 0, zoom: 1, rotate: 0 }, o.from), pl.depth), at)
-        v.tl.to(pl.el, Object.assign(state(Object.assign({ x: 0, y: 0, zoom: 1, rotate: 0 }, to), pl.depth), { duration: dur, ease: o.ease || "sine.inOut" }), at)
-      }
+      segs.push({ at, end: at + Math.max(dur, 1e-4), to: full(to), given: o.from ? full(o.from) : null, ease: G.parseEase(o.ease || "sine.inOut"), n: segs.length })
+      ready = false
       return P
     }
+    /**
+     * One smooth camera through key poses: [{ t, x, y, zoom, rotate }, …] (a key
+     * may spread P.aim(…)). Missing values repeat the key before; a first key
+     * with only `t` starts from wherever the camera is then. The speed changes
+     * smoothly through every key (monotone cubic Hermite: no overshoot, no
+     * stop-and-go) and is zero only at the first and last key.
+     */
+    P.path = (keys) => {
+      if (!Array.isArray(keys) || keys.length < 2) throw new Error("P.path needs two keys or more: [{ t: 0 }, { t: 2, zoom: 1.05 }]")
+      const ks = keys.map((k) => (Array.isArray(k) ? Object.assign({ t: k[0] }, k[1]) : Object.assign({}, k))).sort((a, b) => a.t - b.t)
+      segs.push({ at: ks[0].t, end: ks[ks.length - 1].t, raw: ks, n: segs.length })
+      ready = false
+      return P
+    }
+    // monotone cubic Hermite through (t, value) keys: harmonic-mean tangents, flat at turning points
+    const hermite = (ks, t) => {
+      const n = ks.length
+      let i = 0
+      while (i < n - 2 && t > ks[i + 1].t) i++
+      const a = ks[i]
+      const b = ks[i + 1]
+      const span = b.t - a.t || 1e-6
+      const u = Math.max(0, Math.min(1, (t - a.t) / span))
+      const u2 = u * u
+      const u3 = u2 * u
+      const out = {}
+      for (const c of KEYS) {
+        const tan = (j) => {
+          if (j === 0 || j === n - 1) return 0
+          const s0 = (ks[j][c] - ks[j - 1][c]) / (ks[j].t - ks[j - 1].t || 1e-6)
+          const s1 = (ks[j + 1][c] - ks[j][c]) / (ks[j + 1].t - ks[j].t || 1e-6)
+          return s0 * s1 <= 0 ? 0 : (2 * s0 * s1) / (s0 + s1)
+        }
+        out[c] = (2 * u3 - 3 * u2 + 1) * a[c] + (u3 - 2 * u2 + u) * span * tan(i) + (-2 * u3 + 3 * u2) * b[c] + (u3 - u2) * span * tan(i + 1)
+      }
+      return out
+    }
+    // a segment's pose at time t (held at its start before it, at its end after it)
+    const segAt = (s, t) => {
+      if (s.raw) return hermite(s.keys, Math.max(s.at, Math.min(s.end, t)))
+      const p = s.ease(Math.max(0, Math.min(1, (t - s.at) / (s.end - s.at))))
+      const out = {}
+      for (const c of KEYS) out[c] = s.from[c] + (s.to[c] - s.from[c]) * p
+      return out
+    }
+    // put the track in time order and give every segment its start pose (where the camera is then)
+    const settle = () => {
+      segs.sort((a, b) => a.at - b.at || a.n - b.n)
+      segs.forEach((s, i) => {
+        const prev = i > 0 ? segAt(segs[i - 1], s.at) : NEUTRAL
+        if (s.raw) {
+          let last = prev
+          s.keys = s.raw.map((k) => (last = Object.assign({}, last, k)))
+        } else s.from = s.given || prev
+      })
+      ready = true
+    }
+    /** The camera pose at time t: { x, y, zoom, rotate }. */
+    P.at = (t) => {
+      if (!segs.length) return NEUTRAL
+      if (!ready) settle()
+      let i = 0
+      while (i < segs.length - 1 && segs[i + 1].at <= t) i++
+      return segAt(segs[i], t)
+    }
+    let shown = ""
+    v.onFrame((t) => {
+      if (!segs.length) return
+      const p = P.at(t)
+      const key = KEYS.map((c) => p[c].toFixed(4)).join(",")
+      if (key === shown) return
+      shown = key
+      for (const pl of P.list) G.set(pl.el, state(p, pl.depth))
+    })
     /**
      * The slow camera every shot should have: a gentle drift sideways and a
      * small push in, near planes moving more (parallax). o: { x: -36, y: 0, zoom: 1.05, from: { x: 24 } }
@@ -1178,7 +1291,7 @@
 
   /**
    * On-screen captions from the voice-over words: a few words at a time, the
-   * spoken word highlighted. o: { words, y, maxWords: 3, cls, from, to } → el
+   * spoken word highlighted. o: { words, y, maxWords: 3, cls, from, to, fade: 0.12, hold: 0.6 } → el
    */
   function captions(v, parent, o = {}) {
     const words = o.words || window.VO_WORDS || []
@@ -1198,13 +1311,37 @@
       const row = h("div", { class: "cap-row" }, el)
       return { c, row, spans: c.map((w) => h("span", { class: "cap-w" }, row, w.w.replace(/[,;:]$/, ""))) }
     })
+    // Each row is one element holding its words AND its plate (looks style the plate on
+    // .cap-row), so the plate always comes and goes with its own words and never lingers
+    // behind the next caption. A row fades in after a pause and out before one; back to
+    // back rows swap in place. Put any plate on .cap-row, never on the .captions box.
+    const fade = o.fade ?? 0.12
+    const hold = o.hold ?? 0.6
+    const spansOf = rows.map(({ c }, i) => {
+      const next = rows[i + 1]
+      const from = c[0].s - 0.05
+      const gapAfter = next ? next.c[0].s - c[c.length - 1].e : Infinity
+      const joined = next && gapAfter < hold
+      const to = joined ? next.c[0].s - 0.05 : c[c.length - 1].e + Math.min(hold, Math.max(0.15, gapAfter - 0.1))
+      const prev = rows[i - 1]
+      const gapBefore = prev ? c[0].s - prev.c[prev.c.length - 1].e : Infinity
+      return { from, to, fadeIn: gapBefore >= hold, fadeOut: !joined }
+    })
     v.onFrame((t) => {
-      const inRange = (o.from === undefined || t >= o.from) && (o.to === undefined || t < o.to)
+      const lo = o.from ?? -Infinity
+      const hi = o.to ?? Infinity
       rows.forEach(({ c, row, spans }, i) => {
-        const next = rows[i + 1]
-        const on = inRange && t >= c[0].s - 0.05 && (next ? t < next.c[0].s - 0.05 : t < c[c.length - 1].e + 0.6)
+        const s = spansOf[i]
+        const a0 = Math.max(s.from, lo)
+        const a1 = Math.min(s.to, hi)
+        const on = t >= a0 && t < a1
         row.style.display = on ? "" : "none"
-        if (on) spans.forEach((sp, j) => sp.classList.toggle("on", t >= c[j].s - 0.03))
+        if (!on) return
+        let a = 1
+        if (fade > 0 && (s.fadeIn || a0 === lo)) a = Math.min(a, (t - a0) / fade)
+        if (fade > 0 && (s.fadeOut || a1 === hi)) a = Math.min(a, (a1 - t) / fade)
+        row.style.opacity = String(Math.max(0, Math.min(1, a)))
+        spans.forEach((sp, j) => sp.classList.toggle("on", t >= c[j].s - 0.03))
       })
     })
     return el
@@ -1287,6 +1424,7 @@
         audio: cfg.audio,
         cues: v.cues.slice().sort((a, b) => a.at - b.at),
         busy: v.busy.slice(),
+        warnings: [...new Set(v.warnings)],
         safe: v.safe,
         ui: v.ui,
         seek(t) {

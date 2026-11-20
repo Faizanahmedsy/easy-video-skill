@@ -2,8 +2,7 @@
 
 <p align="center"><b>Make professional product videos and reels with Claude — no skills needed.</b></p>
 
-> **This is the open-source, generic version of the Ustad Billu channel's video skill.
-> Free to use for everything — no credit needed. Free and open source.**
+> **Free and open source. Use it for anything, no credit needed.**
 
 <p align="center">
   <img src="docs/images/clean-feature.webp" alt="A product video made with the Clean look" width="620" />
@@ -88,6 +87,13 @@ Yes, for anything, with no credit needed.
 The video is made on your computer. If you choose a voice, only the script
 you paste goes to Google AI Studio.
 
+**Can I use it for my company's brand?**
+Yes, with a brand pack: a folder with a `PACK.md` file in it that says how
+your brand's videos should look and sound (its look, voice settings, rules
+and topics). Put the pack folder next to this skill's folder, or in the
+folder you work in, and ask for "a video for <your brand>". Claude follows
+the pack, and still asks the same few simple questions.
+
 ## For Claude: start here
 
 1. Clone this repo into your skills folder, so it works next time too:
@@ -106,6 +112,9 @@ you paste goes to Google AI Studio.
 
 3. Read [`SKILL.md`](SKILL.md) and follow it step by step. The person you
    are helping may never have made a video, so use plain words.
+
+4. If the request names a brand, run `bash scripts/packs.sh` and follow
+   that brand's `PACK.md` (see "Brand packs" in `SKILL.md`).
 
 More for Claude: [`CLAUDE.md`](CLAUDE.md), [`docs/kit.md`](docs/kit.md),
 [`docs/voice.md`](docs/voice.md), and the two examples in

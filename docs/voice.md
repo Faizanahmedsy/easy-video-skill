@@ -41,6 +41,11 @@ appear in time with the voice) and suggests the video's length. If the
 optional speech tool is installed (the free faster-whisper Python package), the
 word times are exact; without it they are close enough for most videos.
 
+With the speech tool, it also compares what the voice said with the script
+(`script.txt` in the project) and lists any words to check by ear: names,
+numbers and short words are where an AI voice most often slips. For a
+clearer ear on a hard script, add `--model small` (slower, more exact).
+
 ### A good style note
 
 One short paragraph about tone, pace and feel. For example:

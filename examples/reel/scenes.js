@@ -83,7 +83,8 @@ Kit.start(window.VIDEO, (v) => {
   const heldN = h("i", { style: { width: "36px", height: "36px", fontSize: "20px" } }, held, "0")
   h("span", {}, held, "held for later")
   tl.set(held, { autoAlpha: 0 }, 0)
-  B.P.move(2.95, 2.8, { zoom: 1, y: 0 }, { from: { zoom: 1.1, y: -30 }, ease: "power2.out" })
+  // the camera: one smooth move from where the dive lands (3.84 s) down to the phone, no stops
+  B.P.path([{ t: 3.84 }, { t: 5.6, zoom: 1.015, y: -8 }, { t: 8.6, ...B.P.aim(540, 1420, 1.05) }])
 
   // ── 3 · pings wait (5.6 – 8.55): one take, the words change ───────────
   T2.out(5.5)
@@ -110,7 +111,6 @@ Kit.start(window.VIDEO, (v) => {
     v.sfx("pop", t0 + 0.55, { gain: -8, pitch: 1.2 + i * 0.05 })
   })
   v.onFrame((t) => (heldN.textContent = String(Math.max(0, Math.min(5, Math.floor((t - 6.4 - 0.55) / 0.36) + 1)))))
-  B.P.move(5.75, 2.8, B.P.aim(540, 1420, 1.05), { ease: "power1.inOut" })
 
   // ── 4 · the number (slanted wipe, 8.55 – 11.3) ─────────────────────────
   const w1 = L.wipe(8.3)
